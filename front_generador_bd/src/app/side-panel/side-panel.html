@@ -1,0 +1,56 @@
+<div class="side-panel">
+
+  <div
+    class="palette-item"
+    cdkDrag
+    [cdkDragData]="{ type: 'class' }"
+    (cdkDragEnded)="onDragEnded($event)">
+    <div class="item-content">📦 Clase UML</div>
+  </div>
+
+  <div
+    class="palette-item"
+    cdkDrag
+    [cdkDragData]="{ type: 'association' }"
+    (cdkDragEnded)="onDragEnded($event)">
+    <div class="item-content">🔗 Asociación</div>
+  </div>
+
+  <div
+    class="palette-item"
+    cdkDrag
+    [cdkDragData]="{ type: 'generalization' }"
+    (cdkDragEnded)="onDragEnded($event)">
+    <div class="item-content">⬆️ Herencia</div>
+  </div>
+
+  <div
+    class="palette-item"
+    cdkDrag
+    [cdkDragData]="{ type: 'aggregation' }"
+    (cdkDragEnded)="onDragEnded($event)">
+    <div class="item-content">◇ Agregación</div>
+  </div>
+
+  <div
+    class="palette-item"
+    cdkDrag
+    [cdkDragData]="{ type: 'composition' }"
+    (cdkDragEnded)="onDragEnded($event)">
+    <div class="item-content">◆ Composición</div>
+  </div>
+
+  <div
+    class="palette-item"
+    cdkDrag
+    [cdkDragData]="{ type: 'dependency' }"
+    (cdkDragEnded)="onDragEnded($event)">
+    <div class="item-content">⋯ Dependencia</div>
+  </div>
+  <button
+  (click)="onExportClick()"
+  class="export-button bg-indigo-600 text-white w-full py-2 mt-4 rounded hover:bg-indigo-700 transition">
+  🧾 Exportar JSON
+</button>
+
+</div>

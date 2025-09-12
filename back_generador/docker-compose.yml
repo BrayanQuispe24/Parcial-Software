@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: diagramador-postgres
+    environment:
+      POSTGRES_DB: diagramadordb
+      POSTGRES_USER: diagramadoruser
+      POSTGRES_PASSWORD: diagramadorpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diagramadoruser -d diagramadordb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: diagramador-redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: .
+    container_name: diagramador-backend
+    depends_on:
+      - db
+      - redis
+    environment:
+      DJANGO_SETTINGS_MODULE: diagramador.settings
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: diagramadordb
+      DB_USER: diagramadoruser
+      DB_PASSWORD: diagramadorpass
+      DB_HOST: db
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      TZ: America/La_Paz
+    ports:
+      - "8001:8001"
+# En dev: descomenta para ver cambios sin rebuild con runserver (opcional)
+# volumes:
+#   - .:/app
+
+volumes:
+  pgdata:

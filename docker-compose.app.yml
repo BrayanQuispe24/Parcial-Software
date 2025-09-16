@@ -1,61 +1,41 @@
-version: "3.8"
-
 services:
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - app-net
-    restart: unless-stopped
-
-  backend:
-    build:
-      context: ./back_generador
-      dockerfile: Dockerfile
+  web:
+    build: ./back_generador/
+    container_name: django_backend
     environment:
-      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-diagramador.settings}
-      ASGI_APP: ${ASGI_APP:-diagramador.asgi:application}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:071104@db:5432/colaborativodb}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      SECRET_KEY: ${SECRET_KEY:-change-me}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
-      TZ: America/La_Paz
-    # Nota: no puedes usar depends_on hacia 'db' aquí porque está en otro compose.
-    # Asegúrate de levantar compose-db.yml primero.
-    depends_on:
-      - redis
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=colaborativodb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=071104
+      - CORS_ALLOWED_ORIGINS=http://localhost:4000,http://angular-app:4000
+    volumes:
+      - ./back_generador:/app
     ports:
       - "8000:8000"
-    networks:
-      - app-net
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./front_generador_bd
-      dockerfile: Dockerfile
-    environment:
-      NODE_ENV: production
-      PORT: ${FRONT_PORT:-4000}
-      HOST: 0.0.0.0
-      TZ: America/La_Paz
-      # Si tu SSR llama al backend desde el servidor Node, puedes usar la URL interna:
-      # API_BASE_URL: http://backend:8000
+    stdin_open: true
+    tty: true
     depends_on:
-      - backend
-    ports:
-      - "${FRONT_PORT:-4000}:4000"
+      - angular-app
     networks:
-      - app-net
-    restart: unless-stopped
+      - backend
+      - frontend
+    command: >
+      sh -c "python manage.py migrate &&
+           exec daphne -b 0.0.0.0 -p 8000 ${ASGI_APP:-diagramador.asgi:application}"
+
+  angular-app:
+    build: ./front_generador_bd/
+    container_name: angular_frontend
+    ports:
+      - "4000:4000"
+    environment:
+      - API_URL=http://web:8000
+    networks:
+      - frontend
+      - backend
 
 networks:
-  app-net:
+  backend:
     external: true
+  frontend:
+    driver: bridge

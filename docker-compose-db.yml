@@ -1,49 +1,53 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  db:
+  postgres:
     image: postgres:17
     container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "071104"
-      POSTGRES_DB: colaborativodb
-      TZ: America/La_Paz
-    # Quita el puerto si NO necesitas entrar desde tu host
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=071104 
+      - POSTGRES_DB=colaborativodb
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d colaborativodb"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - app-net
+      - backend
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4
     container_name: pgadmin
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: "False"
-      TZ: America/La_Paz
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "5050:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+      #- ./aula-inteligente-back/rp.sql:/tmp/rp.sql
+    ports:
+      - "5050:80"
+    user: "5050:5050"
+    # entrypoint: >
+    #   /bin/sh -c "
+    #     chown -R 5050:5050 /var/lib/pgadmin && 
+    #     chmod -R 775 /var/lib/pgadmin && 
+    #     mkdir -p /var/lib/pgadmin/storage/admin_example.com && 
+    #     cp /tmp/rp.sql /var/lib/pgadmin/storage/admin_example.com/rp.sql && 
+    #     /entrypoint.sh"
+    depends_on:
+      - postgres
     networks:
-      - app-net
+      - backend
 
 networks:
-  app-net:
+  backend:
     external: true
 
 volumes:

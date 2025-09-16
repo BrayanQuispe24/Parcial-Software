@@ -1,55 +1,42 @@
-# ===== Base (root) =====
-FROM python:3.12-slim-bookworm AS base
+# ===== Base moderna compatible con Django 5 / Channels 4 / Twisted 25 =====
+FROM python:3.12-slim-bookworm
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+# Logs sin buffer y sin .pyc
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TZ=America/La_Paz
 
+WORKDIR /app
+
+# Paquetes del sistema (compilación y libpq para psycopg si no usas el binario)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev libffi-dev curl \
- && rm -rf /var/lib/apt/lists/*
+      build-essential \
+      libpq-dev \
+      libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Primero requirements para cachear capas
+COPY requirements.txt ./requirements.txt
 
-# ===== Dependencias =====
-FROM base AS deps
-COPY requirements.txt .
-RUN pip install --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+# pip actualizado e instalación de dependencias
+# Nota: mantengo tus pines tal cual. Si algún wheel no existe para tu arch,
+# podría requerir compilar; con estas libs debería alcanzar.
+RUN python -m pip install --upgrade pip \
+ && python -m pip install -r requirements.txt
 
-# ===== Runtime =====
-FROM python:3.12-slim-bookworm AS runtime
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5 \
- && rm -rf /var/lib/apt/lists/*
-
-# Usuario no root
+# Usuario no-root
 RUN useradd -m appuser
-WORKDIR /app
-
-# Copiamos dependencias y proyecto
-COPY --from=deps /usr/local /usr/local
-COPY . .
-# Bootstrap en Python (sin .sh)
-COPY bootstrap.py /app/bootstrap.py
-
-# Permisos
-RUN chown -R appuser:appuser /app
 USER appuser
 
+# Copiar el código
+COPY --chown=appuser:appuser . .
+
+# Puerto de la app ASGI (Daphne en requirements)
 EXPOSE 8000
-ENV ASGI_APP=diagramador.asgi:application
 
-# Healthcheck: checa que el puerto 8000 esté aceptando conexiones TCP
-HEALTHCHECK --interval=10s --timeout=2s --retries=5 \
-  CMD python -c "import socket,sys; s=socket.socket(); s.settimeout(1); ok=0; \
-try: s.connect(('127.0.0.1',8000)); ok=1 \
-except Exception: pass \
-finally: s.close(); sys.exit(0 if ok else 1)"
+# Permite sobreescribir el módulo ASGI por variable de entorno
+ENV ASGI_APP=${ASGI_APP:-diagramador.asgi:application}
 
-# Si NO usas bootstrap.py, deja el CMD de daphne; si SÍ lo usas, pon ENTRYPOINT:
-# CMD ["sh","-c","daphne -b 0.0.0.0 -p 8000 ${ASGI_APP}"]
-ENTRYPOINT ["python", "/app/bootstrap.py"]
+# Comando por defecto: servir ASGI con Daphne
+#CMD ["sh", "-c", "exec daphne -b 0.0.0.0 -p 8000 ${ASGI_APP}"]

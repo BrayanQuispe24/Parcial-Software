@@ -81,7 +81,7 @@ DATABASES = {
         'NAME': 'colaborativodb',
         'USER': 'postgres',
         'PASSWORD': '071104',
-        'HOST': 'db',
+        'HOST': 'postgres',
         'PORT': '5432'
     }
     # "default": {

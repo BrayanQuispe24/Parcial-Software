@@ -76,22 +76,22 @@ ASGI_APPLICATION = "diagramador.asgi.application" # lo que utiliza gunicorn
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    #  'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'diagramador',
-    #     'USER': 'postgres',
-    #     'PASSWORD': '6305913',
-    #     'HOST': '127.0.0.1',
-    #     'PORT': '5432'
-    # }
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "colaborativodb"),
-        "USER": os.environ.get("DB_USER", "colaborativouser"),
-        "PASSWORD": os.environ.get("DB_PASSWORD", "colaborativopass"),
-        "HOST": os.environ.get("DB_HOST", "db"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
+     'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'colaborativodb',
+        'USER': 'postgres',
+        'PASSWORD': '071104',
+        'HOST': 'db',
+        'PORT': '5432'
     }
+    # "default": {
+    #     "ENGINE": "django.db.backends.postgresql",
+    #     "NAME": os.environ.get("DB_NAME", "colaborativodb"),
+    #     "USER": os.environ.get("DB_USER", "colaborativouser"),
+    #     "PASSWORD": os.environ.get("DB_PASSWORD", "colaborativopass"),
+    #     "HOST": os.environ.get("DB_HOST", "db"),
+    #     "PORT": os.environ.get("DB_PORT", "5432"),
+    # }
 }
 
 # Channels: Redis si hay REDIS_URL; si no, in-memory (solo dev)

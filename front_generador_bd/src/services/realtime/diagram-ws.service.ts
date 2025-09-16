@@ -4,6 +4,12 @@ import { Subject } from 'rxjs';
 type XY = { x: number; y: number };
 type Size = { width: number; height: number };
 
+export type LabelDTO = {
+  position?: number | { distance?: number; offset?: number; ratio?: number };
+  attrs?: { text?: { text?: string } };
+};
+
+
 export type NodeData = {
   name: string;
   position: XY;
@@ -11,12 +17,28 @@ export type NodeData = {
   attributes: string;   // texto multilinea (mismo que en .uml-class-attrs-text)
   methods: string;      // texto multilinea (mismo que en .uml-class-methods-text)
 };
+// arriba, junto a los tipos
+type LinkKind = 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency';
 
 export type LinkData = {
   sourceId: string;
   targetId: string;
-  labels?: string[]; // [sourceLabel, targetLabel]
+  sourcePort?: string;
+  targetPort?: string;
+  labels?: LabelDTO[];
+  vertices?: XY[];
+  kind?: LinkKind;             // 👈 NUEVO
 };
+
+
+
+
+// export type LinkData = {
+//   sourceId: string;
+//   targetId: string;
+//   labels?: LabelDTO[];  // ahora no es string[], guardamos pos + texto
+//   vertices?: XY[];      // puntos intermedios de la línea
+// };
 
 export type DiagramOp =
   | { cid?: string; type: 'node.add'; id: string; data: NodeData }

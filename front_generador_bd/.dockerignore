@@ -1,0 +1,17 @@
+node_modules
+dist
+.angular
+coverage
+
+.git
+.gitignore
+.vscode
+.idea
+*.iml
+
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+*.swp
+*.DS_Store
+Thumbs.db

@@ -14,14 +14,15 @@ export class MethodsClassesService {
 
 
   buildRelationship(sourceId?: string, targetId?: string) {
-    return new this.joint.dia.Link({
-      name: 'Relacion',
-      source: sourceId ? { id: sourceId } : undefined,
-      target: targetId ? { id: targetId } : undefined,
-      attrs: {
-        '.connection': { stroke: '#333333', 'stroke-width': 2 },
-        '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
-      },
+     return new this.joint.dia.Link({
+    name: 'Relacion',
+    kind: 'association',       // 👈 NUEVO
+    source: sourceId ? { id: sourceId } : undefined,
+    target: targetId ? { id: targetId } : undefined,
+    attrs: {
+      '.connection': { stroke: '#333333', 'stroke-width': 2 },
+      '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+    },
       labels: [
         { position: { distance: 20, offset: -10 }, attrs: { text: { text: '0..1', fill: '#333' } } }, // origen
         { position: { distance: -20, offset: -10 }, attrs: { text: { text: '1..*', fill: '#333' } } } // destino
@@ -93,8 +94,11 @@ export class MethodsClassesService {
 
     const applyValue = () => {
       const value = menu.value;
+
       if (value === 'n:n') {
+        link.remove();
         this.createJoinTableForManyToMany(sourceId, targetId);
+        return; // 👈 no dispares 'local:link-changed' ni sigas //esto
       } else {
         // Asegura que existe el label 1
         const labels = link.labels?.() ?? [];
@@ -114,11 +118,16 @@ export class MethodsClassesService {
 
     // 1) Si cambia, aplicamos y limpiamos (una sola vez)
     menu.addEventListener('change', () => {
+      const wasManyToMany = menu.value === 'n:n';
       applyValue();
-      // ahora que el link tiene el label aplicado, notifica el cambio
-      this.graph?.trigger('local:link-changed', { link });
+
+      if (!wasManyToMany) {
+        // para cambios normales de cardinalidad
+        this.graph?.trigger('local:link-changed', { link });
+      }
       cleanup();
     }, { once: true });
+
 
 
     // 2) Si se pierde foco sin cambiar, cerramos.
@@ -235,7 +244,7 @@ export class MethodsClassesService {
   /**
    * Crea una tabla intermedia para relación muchos a muchos
    */
-  private createJoinTableForManyToMany(sourceId: string, targetId: string) {
+  private createJoinTableForManyToMany(sourceId: string, targetId: string, opts: { silentLinks?: boolean } = { silentLinks: true }) {
     const sourceEl = this.graph.getCell(sourceId);
     const targetEl = this.graph.getCell(targetId);
     if (!sourceEl || !targetEl) return;
@@ -267,9 +276,26 @@ export class MethodsClassesService {
       methods: []
     });
 
-    // 🔗 Relacionar desde ambas clases a la tabla intermedia
-    this.createRelationship(sourceId, joinClass.id, '1:n');
-    this.createRelationship(targetId, joinClass.id, '1:n');
+    if (opts.silentLinks) {
+      // Links 1:n sin menú
+      const l1 = this.buildRelationship(sourceId, joinClass.id);
+      this.ensureTwoLabels(l1);
+      l1.label(0, { attrs: { text: { text: '0..1' } } });
+      l1.label(1, { attrs: { text: { text: '1..*' } } });
+      this.graph.addCell(l1);
+
+      const l2 = this.buildRelationship(targetId, joinClass.id);
+      this.ensureTwoLabels(l2);
+      l2.label(0, { attrs: { text: { text: '0..1' } } });
+      l2.label(1, { attrs: { text: { text: '1..*' } } });
+      this.graph.addCell(l2);
+    } else {
+      // comportamiento anterior (si alguna vez lo quieres)
+      this.createRelationship(sourceId, joinClass.id, '1:n');
+      this.createRelationship(targetId, joinClass.id, '1:n');
+    }
+
+    return joinClass; // útil si luego quieres posicionar o usar el id
   }
   // === Ajusta alto de compartimentos y del elemento según el texto ===
   private autoResizeUmlClass = (model: any) => {

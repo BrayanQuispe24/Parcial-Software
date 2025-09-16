@@ -1,7 +1,8 @@
 // +++ añade esto arriba +++
-import { DiagramWsService, DiagramOp } from './realtime/diagram-ws.service';
+import { DiagramWsService, DiagramOp, LinkData } from './realtime/diagram-ws.service';
 import { inject, Injectable } from '@angular/core';
 import { MethodsClassesService } from './method-classes/methods-classes.service';
+
 
 @Injectable({
   providedIn: 'root'
@@ -149,10 +150,12 @@ export class DiagramService {
         // ¿El click derecho fue sobre una etiqueta?
         const labelIndex = this.getClickedLabelIndex(linkView, evt);
         if (labelIndex !== null) {
-          // 👉 eliminar la etiqueta directamente
+          // 👉 eliminar la etiqueta y notificar a los demás
           linkView.model.removeLabel(labelIndex);
+          this.graph?.trigger('local:link-changed', { link: linkView.model });
           return;
         }
+
 
         // 👉 si no fue sobre una etiqueta, agregamos una nueva
         const model = linkView.model;
@@ -372,6 +375,14 @@ export class DiagramService {
 
       this.ws.enqueueOp(op);
     });
+    // Replica cambios de geometría (vértices) a todos
+    this.graph.on('change:vertices', (link: any) => {
+      if (!this.ws) return;
+      const id = link.id as string;
+      if (this.suppress.has(id)) return;
+      this.queueLinkReplace(id, link);
+    });
+    //aqui
 
     // drag en vivo (broadcast efímero)
     this.paper.on('element:pointermove', (view: any) => {
@@ -429,12 +440,47 @@ export class DiagramService {
     return { name, attributes, methods, position, size };
   }
 
-  private serializeLink(link: any) {
-    const sourceId = link.get('source')?.id;
-    const targetId = link.get('target')?.id;
-    const labels = (link.labels?.() || []).map((l: any) => l?.attrs?.text?.text || '');
-    return { sourceId, targetId, labels };
+
+  private serializeLink(link: any): LinkData {
+    const src = link.get('source') || {};
+    const tgt = link.get('target') || {};
+    const labels = (link.labels?.() || []).map((l: any) => ({
+      position: l?.position,
+      attrs: { text: { text: l?.attrs?.text?.text || '' } }
+    }));
+    return {
+      sourceId: src.id,
+      targetId: tgt.id,
+      sourcePort: src.port,
+      targetPort: tgt.port,
+      labels,
+      vertices: link.get('vertices') || [],
+      kind: link.get('kind') || 'association'   // 👈 NUEVO
+    };
   }
+
+
+  // private serializeLink(link: any): LinkData {
+  //   const sourceId = link.get('source')?.id;
+  //   const targetId = link.get('target')?.id;
+
+  //   const labels = (link.labels?.() || []).map((l: any) => ({
+  //     position: l?.position, // conserva distance/ratio/offset
+  //     attrs: { text: { text: l?.attrs?.text?.text || '' } }
+  //   }));
+
+  //   const vertices = link.get('vertices') || [];
+
+  //   return { sourceId, targetId, labels, vertices };
+  // }
+
+
+  // private serializeLink(link: any) {
+  //   const sourceId = link.get('source')?.id;
+  //   const targetId = link.get('target')?.id;
+  //   const labels = (link.labels?.() || []).map((l: any) => l?.attrs?.text?.text || '');
+  //   return { sourceId, targetId, labels };
+  // }
 
   // +++ snapshot completo +++
   applySnapshot(snap: { nodes: Record<string, any>; links: Record<string, any> }) {
@@ -521,25 +567,91 @@ export class DiagramService {
     setTimeout(() => this.suppress.delete(id), 0);
   }
 
-  private addRemoteLink(id: string, data: any) {
+  private attrsForKind(kind: 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency') {
+    switch (kind) {
+      case 'generalization':
+        return {
+          '.connection': { stroke: '#333', 'stroke-width': 2 },
+          '.marker-target': { d: 'M 20 0 L 0 10 L 20 20 z', fill: '#fff', stroke: '#333' }
+        };
+      case 'aggregation':
+        return {
+          '.connection': { stroke: '#333', 'stroke-width': 2 },
+          '.marker-source': { d: 'M 0 10 L 10 0 L 20 10 L 10 20 z', fill: '#fff', stroke: '#333' }
+        };
+      case 'composition':
+        return {
+          '.connection': { stroke: '#333', 'stroke-width': 2 },
+          '.marker-source': { d: 'M 0 10 L 10 0 L 20 10 L 10 20 z', fill: '#333' }
+        };
+      case 'dependency':
+        return {
+          '.connection': { stroke: '#333', 'stroke-width': 2, 'stroke-dasharray': '4 2' },
+          '.marker-target': { d: 'M 10 0 L 0 5 L 10 10 z', fill: '#333' }
+        };
+      default: // association
+        return {
+          '.connection': { stroke: '#333333', 'stroke-width': 2 },
+          '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+        };
+    }
+  }
+
+  private addRemoteLink(id: string, data: LinkData) {
     this.suppress.add(id);
+    const kind = (data.kind as any) || 'association';
     const link = new this.joint.dia.Link({
       id,
       name: 'Relacion',
-      source: { id: data.sourceId },
-      target: { id: data.targetId },
-      attrs: {
-        '.connection': { stroke: '#333333', 'stroke-width': 2 },
-        '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
-      },
-      labels: [
-        { position: { distance: 20, offset: -10 }, attrs: { text: { text: data.labels?.[0] || '' } } },
-        { position: { distance: -20, offset: -10 }, attrs: { text: { text: data.labels?.[1] || '' } } }
-      ]
+      kind,                               // 👈 guarda el tipo en el modelo
+      source: { id: data.sourceId, port: data.sourcePort },
+      target: { id: data.targetId, port: data.targetPort },
+      attrs: this.attrsForKind(kind),     // 👈 aplica estilo correcto
+      labels: data.labels || [],
+      vertices: data.vertices || []
     });
     this.graph.addCell(link);
     setTimeout(() => this.suppress.delete(id), 0);
   }
+
+
+  // private addRemoteLink(id: string, data: LinkData) {
+  //   this.suppress.add(id);
+  //   const link = new this.joint.dia.Link({
+  //     id,
+  //     name: 'Relacion',
+  //     source: { id: data.sourceId },
+  //     target: { id: data.targetId },
+  //     attrs: {
+  //       '.connection': { stroke: '#333333', 'stroke-width': 2 },
+  //       '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+  //     },
+  //     labels: data.labels || [],
+  //     vertices: data.vertices || []
+  //   });
+  //   this.graph.addCell(link);
+  //   setTimeout(() => this.suppress.delete(id), 0);
+  // }
+
+  // private addRemoteLink(id: string, data: any) {
+  //   this.suppress.add(id);
+  //   const link = new this.joint.dia.Link({
+  //     id,
+  //     name: 'Relacion',
+  //     source: { id: data.sourceId },
+  //     target: { id: data.targetId },
+  //     attrs: {
+  //       '.connection': { stroke: '#333333', 'stroke-width': 2 },
+  //       '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+  //     },
+  //     labels: [
+  //       { position: { distance: 20, offset: -10 }, attrs: { text: { text: data.labels?.[0] || '' } } },
+  //       { position: { distance: -20, offset: -10 }, attrs: { text: { text: data.labels?.[1] || '' } } }
+  //     ]
+  //   });
+  //   this.graph.addCell(link);
+  //   setTimeout(() => this.suppress.delete(id), 0);
+  // }
 
   private removeRemoteCell(id: string) {
     const cell = this.graph.getCell(id);
@@ -550,6 +662,26 @@ export class DiagramService {
   }
 
 
+  // --- añade estas propiedades privadas ---
+  private pendingReplace = new Map<string, any>();
+  private replaceTimer?: any;
+
+  // --- añade este helper ---
+  private queueLinkReplace(id: string, link: any) {
+    this.pendingReplace.set(id, link);
+    if (this.replaceTimer) return;
+    this.replaceTimer = setTimeout(() => {
+      const items = Array.from(this.pendingReplace.entries());
+      this.pendingReplace.clear();
+      this.replaceTimer = undefined;
+
+      for (const [lid, lnk] of items) {
+        const data = this.serializeLink(lnk);
+        this.ws!.enqueueOp({ type: 'link.remove', id: lid });
+        this.ws!.enqueueOp({ type: 'link.add', id: lid, data });
+      }
+    }, 80); // 80–120ms funciona bien
+  }
 
   /**
  * Exporta todas las clases y relaciones UML del grafo como JSON estructurado
@@ -570,24 +702,24 @@ export class DiagramService {
       const methsText: string = cell.attr('.uml-class-methods-text/text') || '';
 
       const attributes = attrsText.split('\n').filter(line => line.trim() !== '').map(line => {
-        const visibility = line.trim().startsWith('+') ? 'public'
-          : line.trim().startsWith('-') ? 'private'
-            : 'unspecified';
+        // const visibility = line.trim().startsWith('+') ? 'public'
+        //   : line.trim().startsWith('-') ? 'private'
+        //     : 'unspecified';
         const cleanLine = line.replace(/^[-+]/, '').trim();
         const [name, type] = cleanLine.split(':').map(p => p.trim());
-        return { name, type, visibility };
+        return { name, type };
       });
 
       const methods = methsText.split('\n').filter(line => line.trim() !== '').map(line => {
-        const visibility = line.trim().startsWith('+') ? 'public'
-          : line.trim().startsWith('-') ? 'private'
-            : 'unspecified';
+        // const visibility = line.trim().startsWith('+') ? 'public'
+        //   : line.trim().startsWith('-') ? 'private'
+        //     : 'unspecified';
         const cleanLine = line.replace(/^[-+]/, '').trim();
         const nameMatch = cleanLine.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(\(.*\))?\s*(:\s*.+)?$/);
         const name = nameMatch?.[1] || cleanLine;
         const parameters = nameMatch?.[2]?.replace(/[()]/g, '') || '';
         const returnType = nameMatch?.[3]?.replace(':', '').trim() || '';
-        return { name, parameters, returnType, visibility };
+        return { name, parameters, returnType };
       });
 
       return { id, name, attributes, methods };
@@ -596,28 +728,37 @@ export class DiagramService {
     const relationships = links.map((link: any) => {
       const source = link.get('source');
       const target = link.get('target');
-      const labels = link.labels();
+      const kind = link.get('kind') || 'association';  // 👈 tipo real
+      const labels = link.labels?.() || [];
 
+      // Solo calculamos cardinalidades si es asociación
       let sourceCardinality = '';
       let targetCardinality = '';
-
-      if (labels.length === 2) {
+      if (kind === 'association' && labels.length >= 2) {
         sourceCardinality = labels[0]?.attrs?.text?.text || '';
         targetCardinality = labels[1]?.attrs?.text?.text || '';
       }
-      return {
+
+      // Construimos el objeto y añadimos 'cardinality' solo para asociación
+      const rel: any = {
         id: link.id,
         sourceId: source.id,
         targetId: target.id,
         sourceName: classMap[source.id] || '',
         targetName: classMap[target.id] || '',
-        type: 'association',
-        cardinality: {
+        type: kind
+      };
+
+      if (kind === 'association' && (sourceCardinality || targetCardinality)) {
+        rel.cardinality = {
           source: sourceCardinality,
           target: targetCardinality
-        }
-      };
+        };
+      }
+
+      return rel;
     });
+
 
     return JSON.stringify({ classes, relationships }, null, 2);
   }

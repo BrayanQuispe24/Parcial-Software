@@ -48,10 +48,10 @@ export class Diagram implements AfterViewInit {
         this.diagramService.attachWs(this.ws);
 
         // Suscripciones a eventos remotos
-        this.ws.snapshot$.subscribe(({ snapshot }) => this.diagramService.applySnapshot(snapshot));
-        this.ws.op$.subscribe(({ op }) => this.diagramService.applyRemoteOp(op));
-        this.ws.drag$.subscribe(({ id, pos }) => this.diagramService.applyRemoteDrag(id, pos));
-        this.ws.dragEnd$.subscribe(({ id, pos }) => this.diagramService.applyRemoteDragEnd(id, pos));
+        // this.ws.snapshot$.subscribe(({ snapshot }) => this.diagramService.applySnapshot(snapshot));
+        // this.ws.op$.subscribe(({ op }) => this.diagramService.applyRemoteOp(op));
+        // this.ws.drag$.subscribe(({ id, pos }) => this.diagramService.applyRemoteDrag(id, pos));
+        // this.ws.dragEnd$.subscribe(({ id, pos }) => this.diagramService.applyRemoteDragEnd(id, pos));
 
         // Eventos del panel lateral
         this.sidePanel.elementDragged.subscribe((event: CdkDragEnd) => this.onDragEnded(event));

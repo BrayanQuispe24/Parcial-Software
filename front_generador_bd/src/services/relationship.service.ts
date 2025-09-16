@@ -2,15 +2,41 @@ import { inject, Injectable } from '@angular/core';
 import { DiagramService } from './diagram.service';
 import { MethodsClassesService } from './method-classes/methods-classes.service';
 
-@Injectable({
-  providedIn: 'root'
-})
+type RelationKind = 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency';
+
+@Injectable({ providedIn: 'root' })
 export class RelationshipService {
   private sourceElement: any = null;
   private paper: any = null;
   private clickHandler: any = null;
-  private currentType: string = 'association'; // por defecto
-  private methodsClassesService=inject(MethodsClassesService);
+  private escHandler: any = null;              // ✨ para cancelar con ESC
+  private prevInteractive: any = null;         // ✨ para restaurar interactividad
+  private currentType: RelationKind = 'association';
+  private methodsClassesService = inject(MethodsClassesService);
+
+  // ✨ mapa de normalización
+  private canonMap: Record<string, RelationKind> = {
+    // asociación
+    'association': 'association', 'asociacion': 'association', 'asociación': 'association',
+    'relacion': 'association', 'relación': 'association',
+
+    // herencia
+    'generalization': 'generalization', 'herencia': 'generalization', 'inheritance': 'generalization',
+
+    // agregación
+    'aggregation': 'aggregation', 'agregacion': 'aggregation', 'agregación': 'aggregation',
+
+    // composición
+    'composition': 'composition', 'composicion': 'composition', 'composición': 'composition',
+
+    // dependencia
+    'dependency': 'dependency', 'dependencia': 'dependency'
+  };
+
+  private canon(t: string | undefined | null): RelationKind {
+    const k = String(t ?? '').toLowerCase().trim();
+    return this.canonMap[k] ?? 'association';
+  }
 
   constructor(private diagramService: DiagramService) {}
 
@@ -20,47 +46,74 @@ export class RelationshipService {
   startLinkCreation(paper: any, containerElement: HTMLElement, type: string = 'association'): void {
     this.paper = paper;
     this.sourceElement = null;
-    this.currentType = type;
+    this.currentType = this.canon(type); // ✨ normaliza
 
-    // Cambiamos el cursor para indicar el modo de creación
+    // Cursor de modo creación
     containerElement.style.cursor = 'crosshair';
 
-    // Activamos el listener para la selección de elementos
+    // ✨ Desactiva creación automática desde magnet (evita defaultLink = asociación)
+    this.prevInteractive = this.paper.options.interactive;
+    this.paper.options.interactive = { ...(this.prevInteractive || {}), addLinkFromMagnet: false };
+
+    // Listener de selección
     this.clickHandler = (cellView: any) => {
       if (!this.sourceElement) {
         // Primera selección
         this.sourceElement = cellView.model;
         console.log(`Primer elemento seleccionado para relación (${this.currentType})`);
       } else {
-        // Segunda selección, creamos la relación
+        // Segunda selección → crear la relación tipada
         this.createTypedRelationship(this.sourceElement.id, cellView.model.id, this.currentType);
 
-        // Limpiamos estado y desactivamos el modo de creación
+        // Limpieza
         this.paper.off('cell:pointerclick', this.clickHandler);
         containerElement.style.cursor = 'default';
-        this.sourceElement = null;
         this.clickHandler = null;
+        this.sourceElement = null;
+
+        // ✨ Restaurar interactividad original
+        if (this.prevInteractive) {
+          this.paper.options.interactive = this.prevInteractive;
+          this.prevInteractive = null;
+        }
+
+        // ✨ remover ESC handler si estaba
+        if (this.escHandler) {
+          document.removeEventListener('keydown', this.escHandler);
+          this.escHandler = null;
+        }
 
         console.log(`Relación creada (${this.currentType})`);
       }
     };
 
     this.paper.on('cell:pointerclick', this.clickHandler);
+
+    // ✨ ESC para cancelar
+    this.escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        this.cancelLinkCreation(containerElement);
+        document.removeEventListener('keydown', this.escHandler);
+        this.escHandler = null;
+      }
+    };
+    document.addEventListener('keydown', this.escHandler);
   }
 
   /**
    * Crea una relación del tipo solicitado entre dos elementos
    */
-  private createTypedRelationship(sourceId: string, targetId: string, type: string) {
+  private createTypedRelationship(sourceId: string, targetId: string, type: RelationKind) {
     switch (type) {
       case 'association':
         this.methodsClassesService.createRelationship(sourceId, targetId, '1:n');
         break;
 
-      case 'generalization': // Herencia
+      case 'generalization': // Herencia (triángulo hueco en el target)
         this.diagramService['graph'].addCell(
           new this.diagramService['joint'].dia.Link({
             name: 'Relacion',
+            kind:'generalization',
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
@@ -75,10 +128,11 @@ export class RelationshipService {
         );
         break;
 
-      case 'aggregation':
+      case 'aggregation': // Rombo hueco en el source
         this.diagramService['graph'].addCell(
           new this.diagramService['joint'].dia.Link({
             name: 'Relacion',
+            kind:'aggregation',
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
@@ -93,10 +147,11 @@ export class RelationshipService {
         );
         break;
 
-      case 'composition':
+      case 'composition': // Rombo sólido en el source
         this.diagramService['graph'].addCell(
           new this.diagramService['joint'].dia.Link({
             name: 'Relacion',
+            kind:'composition',
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
@@ -110,10 +165,11 @@ export class RelationshipService {
         );
         break;
 
-      case 'dependency':
+      case 'dependency': // Línea punteada con flecha en target
         this.diagramService['graph'].addCell(
           new this.diagramService['joint'].dia.Link({
             name: 'Relacion',
+            kind:'dependency',
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
@@ -143,10 +199,22 @@ export class RelationshipService {
   cancelLinkCreation(containerElement: HTMLElement): void {
     if (this.paper && this.clickHandler) {
       this.paper.off('cell:pointerclick', this.clickHandler);
-      containerElement.style.cursor = 'default';
-      this.sourceElement = null;
       this.clickHandler = null;
-      this.currentType = 'association';
+    }
+    containerElement.style.cursor = 'default';
+    this.sourceElement = null;
+    this.currentType = 'association';
+
+    // ✨ restaurar interactividad original
+    if (this.prevInteractive) {
+      this.paper.options.interactive = this.prevInteractive;
+      this.prevInteractive = null;
+    }
+
+    // ✨ remover ESC handler si estaba
+    if (this.escHandler) {
+      document.removeEventListener('keydown', this.escHandler);
+      this.escHandler = null;
     }
   }
 }

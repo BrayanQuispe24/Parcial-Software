@@ -1,0 +1,119 @@
+name: software-parcial-1
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: diagramadordb
+      POSTGRES_USER: diagramadoruser
+      POSTGRES_PASSWORD: diagramadorpass
+      TZ: America/La_Paz
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diagramadoruser -d diagramadordb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      app-net:
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      app-net:
+
+  backend:
+    build:
+      context: ./back_generador
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DJANGO_SETTINGS_MODULE: diagramador.settings
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend,diagramador-backend,front,0.0.0.0
+      DB_NAME: diagramadordb
+      DB_USER: diagramadoruser
+      DB_PASSWORD: diagramadorpass
+      DB_HOST: db
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      TZ: America/La_Paz
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket,sys; s=socket.socket(); s.settimeout(5); s.connect(('127.0.0.1',8001)); sys.exit(0)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      app-net:
+        aliases:
+          - backend
+          - diagramador-backend
+
+  front:
+    build:
+      context: ./front_generador_bd
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      HOST: 0.0.0.0
+      API_URL: http://backend:8001
+      WS_URL: ws://backend:8001
+      TZ: America/La_Paz
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:'+(process.env.PORT||4000), r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      app-net:
+        aliases:
+          - front
+  pgadmin:
+    image: dpage/pgadmin4:8
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      TZ: America/La_Paz
+    ports:
+      - "5051:80"             # abre http://localhost:5050
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      app-net:
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    restart: unless-stopped        
+
+
+volumes:
+  pgdata:
+  pgadmin_data:
+
+networks:
+  app-net:
+    name: generador-net
+    driver: bridge

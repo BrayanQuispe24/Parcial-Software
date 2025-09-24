@@ -98,6 +98,21 @@ public class CodeGenService {
         }
     }
     m.put("fields", fields);
+    // Métodos
+    List<Map<String, Object>> methods = new ArrayList<>();
+    if (e.getMethods() != null) {
+      for (com.example.generator.model.MethodModel mm : e.getMethods()) {
+        Map<String, Object> mth = new HashMap<>();
+        mth.put("name", mm.getName());
+        mth.put("returnType", mm.getReturnType());
+        mth.put("paramsSig", mm.getParamsSig());
+        mth.put("hasReturn", mm.isHasReturn());
+        mth.put("returnExpr", mm.getReturnExpr());
+        methods.add(mth);
+      }
+    }
+    m.put("methods", methods);
+
 
     List<Map<String, Object>> oneToMany = new ArrayList<>();
     List<Map<String, Object>> manyToOne = new ArrayList<>();

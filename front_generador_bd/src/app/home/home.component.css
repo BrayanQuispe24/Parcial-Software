@@ -1,0 +1,94 @@
+/* === RESET & BASE === */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* === CONTENEDOR === */
+.contenedor {
+  width: 520px;
+  padding: 28px;
+  border-radius: 20px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 42px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease;
+}
+
+.contenedor:hover {
+  transform: translateY(-4px);
+}
+
+/* === CAJAS === */
+.caja-unirse,
+.caja-crear {
+  width: 100%;
+  padding: 20px;
+  border-radius: 14px;
+  background: #f9fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+/* === INPUTS === */
+.input-codigo,
+.input-crear {
+  width: 90%;
+  padding: 12px;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.input-codigo:focus,
+.input-crear:focus {
+  border-color: #6366f1;
+  background: #eef2ff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* === BOTONES === */
+.btn-unirse,
+.btn-crear {
+  width: 90%;
+  padding: 12px;
+  font-weight: bold;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  transform: scale(1);
+}
+
+/* --- Botón Unirse --- */
+.btn-unirse {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-unirse:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: scale(1.05);
+}
+
+/* --- Botón Crear --- */
+.btn-crear {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  box-shadow: 0 6px 12px #7E79DB;
+}
+
+.btn-crear:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  transform: scale(1.05);
+}

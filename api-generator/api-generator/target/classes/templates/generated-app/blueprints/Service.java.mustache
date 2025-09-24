@@ -1,17 +1,36 @@
 package {{packageBase}}.service;
 
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Optional;
+
 import {{packageBase}}.domain.{{name}};
 import {{packageBase}}.repository.{{name}}Repository;
-import org.springframework.stereotype.Service;
-import java.util.List;
 
 @Service
+@Transactional
 public class {{name}}Service {
-  private final {{name}}Repository repo;
-  public {{name}}Service({{name}}Repository repo) { this.repo = repo; }
 
-  public List<{{name}}> findAll() { return repo.findAll(); }
-  public {{name}} findById(Long id) { return repo.findById(id).orElse(null); }
-  public {{name}} save({{name}} e) { return repo.save(e); }
-  public void delete(Long id) { repo.deleteById(id); }
+    private final {{name}}Repository repository;
+
+    public {{name}}Service({{name}}Repository repository) {
+        this.repository = repository;
+    }
+
+    public List<{{name}}> findAll() {
+        return repository.findAll();
+    }
+
+    public Optional<{{name}}> findById(Long id) {
+        return repository.findById(id);
+    }
+
+    public {{name}} save({{name}} entity) {
+        return repository.save(entity);
+    }
+
+    public void delete(Long id) {
+        repository.deleteById(id);
+    }
 }

@@ -1,56 +1,40 @@
 <div class="side-panel">
 
-  <div
-    class="palette-item"
-    cdkDrag
-    [cdkDragData]="{ type: 'class' }"
-    (cdkDragEnded)="onDragEnded($event)">
+  <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'class' }" (cdkDragEnded)="onDragEnded($event)">
     <div class="item-content">📦 Clase UML</div>
   </div>
-
-  <div
-    class="palette-item"
-    cdkDrag
-    [cdkDragData]="{ type: 'association' }"
-    (cdkDragEnded)="onDragEnded($event)">
+  <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'association' }" (cdkDragEnded)="onDragEnded($event)">
     <div class="item-content">🔗 Asociación</div>
   </div>
-
-  <div
-    class="palette-item"
-    cdkDrag
-    [cdkDragData]="{ type: 'generalization' }"
-    (cdkDragEnded)="onDragEnded($event)">
+  <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'generalization' }" (cdkDragEnded)="onDragEnded($event)">
     <div class="item-content">⬆️ Herencia</div>
   </div>
-
-  <div
-    class="palette-item"
-    cdkDrag
-    [cdkDragData]="{ type: 'aggregation' }"
-    (cdkDragEnded)="onDragEnded($event)">
+  <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'aggregation' }" (cdkDragEnded)="onDragEnded($event)">
     <div class="item-content">◇ Agregación</div>
   </div>
-
-  <div
-    class="palette-item"
-    cdkDrag
-    [cdkDragData]="{ type: 'composition' }"
-    (cdkDragEnded)="onDragEnded($event)">
+  <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'composition' }" (cdkDragEnded)="onDragEnded($event)">
     <div class="item-content">◆ Composición</div>
   </div>
-
-  <div
-    class="palette-item"
-    cdkDrag
-    [cdkDragData]="{ type: 'dependency' }"
-    (cdkDragEnded)="onDragEnded($event)">
+  <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'dependency' }" (cdkDragEnded)="onDragEnded($event)">
     <div class="item-content">⋯ Dependencia</div>
   </div>
-  <button
-  (click)="onExportClick()"
-  class="export-button bg-indigo-600 text-white w-full py-2 mt-4 rounded hover:bg-indigo-700 transition">
-  🧾 Exportar JSON
-</button>
-
+  <hr>
+  <div class="content-users">
+    <button (click)="onSendPromp()" class="item-content">Enviar instruccion</button>
+    <textarea rows="4" cols="23" (input)="promp.set(txtpromp.value)" #txtpromp [value]="promp()"></textarea>
+  </div>
+  <div class="palette-item">
+    <button (click)="onGenerateBackend()" class="item-content">Generar Backend</button>
+    <input (input)="nombreBackend.set(txtnombreBackend.value)" #txtnombreBackend [value]="nombreBackend()" type="text">
+  </div>
+  <div class="palette-item">
+    <button (click)="onExportClick()" class="export-button item-content ">
+      🧾 Exportar JSON
+    </button>
+  </div>
+  <div class="palette-item"> <button (click)="onGenerateSql()" class="item-content">Generar Datos SQL</button>
+  </div>
+  <div class="palette-item"> <button (click)="downloadUrl()" class="item-content">Invitar</button> </div>
+  <div class="palette-item"> <button class="item-content-delete" (click)="onDisconnect()">Cerrar Diagrama</button>
+  </div>
 </div>

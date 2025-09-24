@@ -9,6 +9,7 @@ import { UmlClass } from '../../models/uml-class.model';
 import { MethodsClassesService } from '../../services/method-classes/methods-classes.service';
 import { DiagramWsService } from '../../services/realtime/diagram-ws.service';
 import { environment } from '../../environments/environment';
+import { MethodDiagramService } from '../../services/method-diagram/method-diagram.service';
 
 @Component({
   selector: 'app-diagram',
@@ -22,6 +23,7 @@ export class Diagram implements AfterViewInit {
   @ViewChild(SidePanel) sidePanel!: SidePanel;
 
   private methodClassesService = inject(MethodsClassesService);
+  private methodDiagramService = inject(MethodDiagramService);
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -30,7 +32,7 @@ export class Diagram implements AfterViewInit {
     private fallbackService: FallbackService,
     private relationshipService: RelationshipService,
     private ws: DiagramWsService,
-  ) {}
+  ) { }
 
   async ngAfterViewInit(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -39,19 +41,17 @@ export class Diagram implements AfterViewInit {
       try {
         await this.diagramService.initialize(this.paperContainer.nativeElement);
 
-        // 👉 Conecta WS
-        const diagramId = 'mi-room'; // o toma desde la ruta
-        const token = undefined;      // si usas cookies de sesión, déjalo undefined
-        this.ws.connect(environment.wsBaseUrl, diagramId, token);
+        // 👉 Cuando abras/crees el diagrama deberías obtener esto del backend
+        // Ejemplo quemado:
+        // const diagramId = 'bc8bc66c-f318-47a2-afc6-8c74e87869c1';
+        // const url = `${environment.wsBaseUrl}/ws/diagram/${diagramId}/`;
 
-        // Pasa el WS al servicio
-        this.diagramService.attachWs(this.ws);
+        // this.ws.connect(url);   // 👈 ahora sí apunta al consumer correcto
+        // this.diagramService.attachWs(this.ws);
 
-        // Suscripciones a eventos remotos
+        // Suscripciones a eventos
         // this.ws.snapshot$.subscribe(({ snapshot }) => this.diagramService.applySnapshot(snapshot));
-        // this.ws.op$.subscribe(({ op }) => this.diagramService.applyRemoteOp(op));
-        // this.ws.drag$.subscribe(({ id, pos }) => this.diagramService.applyRemoteDrag(id, pos));
-        // this.ws.dragEnd$.subscribe(({ id, pos }) => this.diagramService.applyRemoteDragEnd(id, pos));
+        this.connectIfUrlStored();
 
         // Eventos del panel lateral
         this.sidePanel.elementDragged.subscribe((event: CdkDragEnd) => this.onDragEnded(event));
@@ -62,7 +62,8 @@ export class Diagram implements AfterViewInit {
         console.error('Error al inicializar el diagrama:', error);
       }
     });
-  } // 👈 CIERRE de ngAfterViewInit (esto faltaba)
+  }
+
 
   @HostListener('document:keydown', ['$event'])
   handleEscape(event: KeyboardEvent) {
@@ -138,4 +139,15 @@ export class Diagram implements AfterViewInit {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  private connectIfUrlStored() {
+    const url = localStorage.getItem('url');
+    if (!url) {
+      console.warn("⚠️ No se encontró ningún 'url' en localStorage");
+      return;
+    }
+      this.methodDiagramService.openDiagram(url);
+      console.log('Bienvenido');
+  }
+
 }

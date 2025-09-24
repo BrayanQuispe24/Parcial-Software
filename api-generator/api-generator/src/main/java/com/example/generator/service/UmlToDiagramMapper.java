@@ -24,6 +24,7 @@ public class UmlToDiagramMapper {
       e.setName(normalizeName(c.getName()));
       e.setTable(toTableName(c.getName()));
       e.setFields(buildFields(c));
+      e.setMethods(buildMethods(c));
       entities.put(c.getId(), e);
     }
 
@@ -125,17 +126,25 @@ public class UmlToDiagramMapper {
       for (UmlAttributeDTO a : c.getAttributes()) {
         if (a.getName() == null || a.getName().isBlank()) continue;
         String name = sanitize(a.getName());
+
+        // 🚫 Ignorar atributos que parezcan FK (terminen en "_id")
+        if (name.toLowerCase().endsWith("_id")) continue;
+
         unique.putIfAbsent(name, mkField(name, a.getType()));
       }
     }
     boolean hasId = unique.values().stream().anyMatch(FieldModel::isId);
     if (!hasId) {
       FieldModel id = new FieldModel();
-      id.setName("id"); id.setType("Long"); id.setId(true); id.setNullable(false);
+      id.setName("id");
+      id.setType("Long");
+      id.setId(true);
+      id.setNullable(false);
       unique.put("id", id);
     }
     return new ArrayList<>(unique.values());
   }
+
 
   private FieldModel mkField(String name, String rawType) {
     FieldModel f = new FieldModel();
@@ -166,7 +175,10 @@ public class UmlToDiagramMapper {
     r.setTarget(targetName);
     r.setJoinColumn(joinCol);
     owner.setRelations(append(owner.getRelations(), r));
+
+    // 🚫 No crear FieldModel para joinCol
   }
+
 
   private RelationModel addOneToMany(EntityModel one, String targetName, String mappedByVar) {
     RelationModel r = new RelationModel();
@@ -177,11 +189,12 @@ public class UmlToDiagramMapper {
     return r;
   }
 
+  // OneToOne → lado propietario, solo relación
   private void addOneToOneOwning(EntityModel owner, String targetName, String joinCol) {
     RelationModel r = new RelationModel();
     r.setType(RelationType.ONE_TO_ONE);
     r.setTarget(targetName);
-    r.setJoinColumn(joinCol);  // lado propietario
+    r.setJoinColumn(joinCol);
     owner.setRelations(append(owner.getRelations(), r));
   }
 
@@ -266,4 +279,63 @@ public class UmlToDiagramMapper {
     }
     return byName;
   }
+  private java.util.List<MethodModel> buildMethods(UmlClassDTO c) {
+    java.util.List<MethodModel> out = new java.util.ArrayList<>();
+    if (c.getMethods() == null) return out;
+
+    for (UmlMethodDTO m : c.getMethods()) {
+      if (m.getName() == null || m.getName().isBlank()) continue;
+
+      String rt = (m.getReturnType() == null || m.getReturnType().isBlank())
+              ? "void"
+              : mapType(m.getReturnType(), m.getName());
+
+      String paramsSig = makeParamsSig(m.getParameters());
+
+      MethodModel mm = new MethodModel();
+      mm.setName(sanitize(m.getName()));
+      mm.setReturnType(rt);
+      boolean hasReturn = !"void".equals(rt);
+      mm.setHasReturn(hasReturn);
+      mm.setReturnExpr(hasReturn ? defaultReturnExpr(rt) : null);
+      mm.setParamsSig(paramsSig);
+
+      out.add(mm);
+    }
+    return out;
+  }
+
+  private String makeParamsSig(String raw) {
+    if (raw == null || raw.isBlank()) return "";
+    String[] parts = raw.split(",");
+    java.util.List<String> sig = new java.util.ArrayList<>();
+    for (String p : parts) {
+      String s = p.trim();
+      if (s.isEmpty()) continue;
+      String name = s;
+      String type = "String";
+      int idx = s.indexOf(':');
+      if (idx > 0) {
+        name = s.substring(0, idx).trim();
+        type = s.substring(idx + 1).trim();
+      }
+      String javaType = mapType(type, name);
+      sig.add(javaType + " " + lower(name));
+    }
+    return String.join(", ", sig);
+  }
+
+  private String defaultReturnExpr(String javaType) {
+    switch (javaType) {
+      case "String": return "\"\"";
+      case "Integer": return "0";
+      case "Long": return "0L";
+      case "Double": return "0.0";
+      case "Boolean": return "false";
+      default:
+        // Para tipos no primitivos, intenta "null"
+        return "null";
+    }
+  }
+
 }

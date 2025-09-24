@@ -1,96 +1,95 @@
 package {{packageBase}}.domain;
 
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.*;
 import java.util.*;
 
 @Entity
 @Table(name = "{{table}}")
 public class {{name}} {
 
+  // ===== Campos simples =====
   {{#fields}}
   {{#isId}}
-  @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private {{type}} {{name}};
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   {{/isId}}
-  {{^isId}}
+  @Column(name = "{{name}}"{{^nullable}}, nullable = false{{/nullable}}{{#unique}}, unique = true{{/unique}})
   private {{type}} {{name}};
-  {{/isId}}
   {{/fields}}
 
+  // ===== Relaciones =====
   {{#manyToOne}}
   @ManyToOne
   @JoinColumn(name = "{{joinColumn}}")
-  @JsonBackReference("{{jsonRef}}")
   private {{target}} {{targetVar}};
   {{/manyToOne}}
 
   {{#oneToMany}}
-  @OneToMany(mappedBy = "{{mappedBy}}"{{#cascadeAll}}, cascade = CascadeType.ALL{{/cascadeAll}}{{#orphanRemoval}}, orphanRemoval = true{{/orphanRemoval}})
-  @JsonManagedReference("{{jsonRef}}")
-  private java.util.List<{{target}}> {{targetVar}}s = new java.util.ArrayList<>();
+  @OneToMany(mappedBy = "{{mappedBy}}")
+  private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/oneToMany}}
 
   {{#oneToOneOwning}}
   @OneToOne
   @JoinColumn(name = "{{joinColumn}}")
-  @JsonManagedReference("{{jsonRef}}")
   private {{target}} {{targetVar}};
   {{/oneToOneOwning}}
 
   {{#oneToOneInverse}}
   @OneToOne(mappedBy = "{{mappedBy}}")
-  @JsonBackReference("{{jsonRef}}")
   private {{target}} {{targetVar}};
   {{/oneToOneInverse}}
 
   {{#manyToManyOwning}}
   @ManyToMany
-  @JoinTable(name = "{{joinTable}}")
-  @JsonManagedReference("{{jsonRef}}")
-  private java.util.List<{{target}}> {{targetVar}}s = new java.util.ArrayList<>();
+  @JoinTable(
+      name = "{{joinTable}}",
+      joinColumns = @JoinColumn(name = "{{thisJoin}}"),
+      inverseJoinColumns = @JoinColumn(name = "{{otherJoin}}")
+  )
+  private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/manyToManyOwning}}
 
   {{#manyToManyInverse}}
   @ManyToMany(mappedBy = "{{mappedBy}}")
-  @JsonBackReference("{{jsonRef}}")
-  private java.util.List<{{target}}> {{targetVar}}s = new java.util.ArrayList<>();
+  private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/manyToManyInverse}}
 
-  public {{name}}() {}
 
+  // ===== Getters & Setters =====
   {{#fields}}
-  public {{type}} get{{Name}}() { return this.{{name}}; }
-  public void set{{Name}}({{type}} v) { this.{{name}} = v; }
+  public {{type}} get{{Name}}() { return {{name}}; }
+  public void set{{Name}}({{type}} {{name}}) { this.{{name}} = {{name}}; }
   {{/fields}}
 
   {{#manyToOne}}
   public {{target}} get{{targetVarCap}}() { return {{targetVar}}; }
-  public void set{{targetVarCap}}({{target}} v) { this.{{targetVar}} = v; }
+  public void set{{targetVarCap}}({{target}} {{targetVar}}) { this.{{targetVar}} = {{targetVar}}; }
   {{/manyToOne}}
 
   {{#oneToMany}}
-  public java.util.List<{{target}}> get{{targetVarCap}}s() { return {{targetVar}}s; }
-  public void set{{targetVarCap}}s(java.util.List<{{target}}> v) { this.{{targetVar}}s = v; }
+  public List<{{target}}> get{{targetVarCap}}s() { return {{targetVar}}s; }
+  public void set{{targetVarCap}}s(List<{{target}}> {{targetVar}}s) { this.{{targetVar}}s = {{targetVar}}s; }
   {{/oneToMany}}
 
   {{#oneToOneOwning}}
   public {{target}} get{{targetVarCap}}() { return {{targetVar}}; }
-  public void set{{targetVarCap}}({{target}} v) { this.{{targetVar}} = v; }
+  public void set{{targetVarCap}}({{target}} {{targetVar}}) { this.{{targetVar}} = {{targetVar}}; }
   {{/oneToOneOwning}}
 
   {{#oneToOneInverse}}
   public {{target}} get{{targetVarCap}}() { return {{targetVar}}; }
-  public void set{{targetVarCap}}({{target}} v) { this.{{targetVar}} = v; }
+  public void set{{targetVarCap}}({{target}} {{targetVar}}) { this.{{targetVar}} = {{targetVar}}; }
   {{/oneToOneInverse}}
 
   {{#manyToManyOwning}}
-  public java.util.List<{{target}}> get{{targetVarCap}}s() { return {{targetVar}}s; }
-  public void set{{targetVarCap}}s(java.util.List<{{target}}> v) { this.{{targetVar}}s = v; }
+  public List<{{target}}> get{{targetVarCap}}s() { return {{targetVar}}s; }
+  public void set{{targetVarCap}}s(List<{{target}}> {{targetVar}}s) { this.{{targetVar}}s = {{targetVar}}s; }
   {{/manyToManyOwning}}
 
   {{#manyToManyInverse}}
-  public java.util.List<{{target}}> get{{targetVarCap}}s() { return {{targetVar}}s; }
-  public void set{{targetVarCap}}s(java.util.List<{{target}}> v) { this.{{targetVar}}s = v; }
+  public List<{{target}}> get{{targetVarCap}}s() { return {{targetVar}}s; }
+  public void set{{targetVarCap}}s(List<{{target}}> {{targetVar}}s) { this.{{targetVar}}s = {{targetVar}}s; }
   {{/manyToManyInverse}}
+
 }

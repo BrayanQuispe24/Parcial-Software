@@ -1,0 +1,15 @@
+<section class="contenedor">
+  <!-- Botón Crear -->
+  <div class="caja-crear">
+    <input type="text" #txtnombre [value]="nombreDiagrama()" (input)="nombreDiagrama.set(txtnombre.value)"
+      placeholder="Nombre" class="input-crear">
+    <button (click)="onCreateDiagram()" class="btn-crear">CREAR</button>
+  </div>
+
+  <!-- Caja Unirse -->
+  <div class="caja-unirse">
+    <input type="text" placeholder="Código" class="input-codigo" [value]="url()" #txturl
+      (input)="url.set(txturl.value)">
+    <button (click)="onConnectDiagram()" class="btn-unirse">UNIRSE</button>
+  </div>
+</section>

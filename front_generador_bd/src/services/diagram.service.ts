@@ -177,8 +177,6 @@ export class DiagramService {
     }
   }
 
-
-
   private startEditingLabel(model: any, labelIndex: number, currentValue: string, x: number, y: number) {
     const paperRect = this.paper.el.getBoundingClientRect();
     const absX = paperRect.left + x;
@@ -289,24 +287,6 @@ export class DiagramService {
     return null; // 👉 No fue sobre una etiqueta
   }
 
-  // private getTextBBox(model: any, selector: string): number {
-  //   const view = this.paper.findViewByModel(model);
-  //   if (!view) return 0;
-
-  //   const node = view.findBySelector(selector)[0] as SVGGraphicsElement;
-  //   if (node) {
-  //     const bbox = node.getBBox();
-  //     return bbox.height;
-  //   }
-  //   return 0;
-  // }
-
-
-
-
-
-
-
 
 
   /**************************************************************************************************
@@ -383,7 +363,13 @@ export class DiagramService {
       this.queueLinkReplace(id, link);
     });
     //aqui
-
+    // 🔹 Cambios en la conexión (cuando arrastras source o target)
+    this.graph.on('change:source change:target', (link: any) => {
+      if (!this.ws) return;
+      const id = link.id as string;
+      if (this.suppress.has(id)) return;
+      this.queueLinkReplace(id, link);
+    });
     // drag en vivo (broadcast efímero)
     this.paper.on('element:pointermove', (view: any) => {
       if (!this.ws) return;
@@ -448,16 +434,18 @@ export class DiagramService {
       position: l?.position,
       attrs: { text: { text: l?.attrs?.text?.text || '' } }
     }));
+
     return {
       sourceId: src.id,
       targetId: tgt.id,
       sourcePort: src.port,
       targetPort: tgt.port,
       labels,
-      vertices: link.get('vertices') || [],
-      kind: link.get('kind') || 'association'   // 👈 NUEVO
+      vertices: link.get('vertices') || [],   // 👈 agrega esto
+      kind: link.get('kind') || 'association'
     };
   }
+
 
 
   // private serializeLink(link: any): LinkData {
@@ -518,19 +506,37 @@ export class DiagramService {
   private addRemoteNode(id: string, data: any) {
     this.suppress.add(id);
 
-    // Convertimos texto → arrays para usar tu MethodsClassesService.createUmlClass
-    const attrs = (data.attributes || '').split('\n').filter(Boolean).map((line: string) => {
-      const [n, t] = line.split(':').map((s) => s?.trim() || '');
-      return { name: n || '', type: t || '' };
-    });
-    const methods = (data.methods || '').split('\n').filter(Boolean).map((line: string) => {
-      // muy simple: nombre(params): retorno
-      const m = line.match(/^([a-zA-Z_]\w*)\s*(\([^)]*\))?\s*(?::\s*(.+))?$/);
-      return { name: (m?.[1] || line).trim(), parameters: (m?.[2] || '').replace(/[()]/g, ''), returnType: (m?.[3] || '').trim() };
-    });
+    // 🔹 Aceptar string o array para atributos
+    const attrs = Array.isArray(data.attributes)
+      ? data.attributes
+      : (data.attributes || '')
+        .split('\n')
+        .filter(Boolean)
+        .map((line: string) => {
+          const [n, t] = line.split(':').map((s) => s?.trim() || '');
+          return { name: n || '', type: t || '' };
+        });
+
+    // 🔹 Aceptar string o array para métodos
+    const methods = Array.isArray(data.methods)
+      ? data.methods
+      : (data.methods || '')
+        .split(/[\n,]+/)   // divide por salto de línea o coma
+        .map((s: string) => s.trim())
+        .filter(Boolean)
+        .map((line: string) => {
+          const m = line.match(/^([a-zA-Z_]\w*)\s*(\([^)]*\))?\s*(?::\s*(.+))?$/);
+          return {
+            name: (m?.[1] || line).trim(),
+            parameters: (m?.[2] || '').replace(/[()]/g, ''),
+            returnType: (m?.[3] || '').trim()
+          };
+        });
+
+
 
     const model = this.methodClassesService.createUmlClass({
-      // 👇 requiere el micro-parche del MethodsClassesService para respetar id
+      // respeta id para colaborativo
       // @ts-ignore
       id,
       name: data.name || 'Entidad',
@@ -540,9 +546,9 @@ export class DiagramService {
       methods
     });
 
-    // quitamos supresión al terminar el ciclo de eventos
     setTimeout(() => this.suppress.delete(id), 0);
   }
+
 
   private updateRemoteNode(id: string, patch: any) {
     const el = this.graph.getCell(id);
@@ -555,17 +561,42 @@ export class DiagramService {
       el.set('name', patch.name);
       el.attr('.uml-class-name-text/text', patch.name);
     }
-    if (typeof patch.attributes === 'string') {
-      el.set('attributes', patch.attributes);
-      el.attr('.uml-class-attrs-text/text', patch.attributes);
+
+    // 🔹 Atributos: string o array
+    if (patch.attributes) {
+      let attrs: any[] = [];
+
+      if (Array.isArray(patch.attributes)) {
+        attrs = patch.attributes;
+        el.set('attributes', attrs);
+        el.attr('.uml-class-attrs-text/text',
+          attrs.map(a => `${a.name}: ${a.type}`).join('\n')
+        );
+      } else if (typeof patch.attributes === 'string') {
+        el.set('attributes', patch.attributes);
+        el.attr('.uml-class-attrs-text/text', patch.attributes);
+      }
     }
-    if (typeof patch.methods === 'string') {
-      el.set('methods', patch.methods);
-      el.attr('.uml-class-methods-text/text', patch.methods);
+
+    // 🔹 Métodos: string o array
+    if (patch.methods) {
+      let methods: any[] = [];
+
+      if (Array.isArray(patch.methods)) {
+        methods = patch.methods;
+        el.set('methods', methods);
+        el.attr('.uml-class-methods-text/text',
+          methods.map(m => `${m.name}(${m.parameters || ''})${m.returnType ? ': ' + m.returnType : ''}`).join('\n')
+        );
+      } else if (typeof patch.methods === 'string') {
+        el.set('methods', patch.methods);
+        el.attr('.uml-class-methods-text/text', patch.methods);
+      }
     }
 
     setTimeout(() => this.suppress.delete(id), 0);
   }
+
 
   private attrsForKind(kind: 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency') {
     switch (kind) {
@@ -596,23 +627,56 @@ export class DiagramService {
         };
     }
   }
-
-  private addRemoteLink(id: string, data: LinkData) {
+  private addRemoteLink(id: string, data: any) {
     this.suppress.add(id);
-    const kind = (data.kind as any) || 'association';
-    const link = new this.joint.dia.Link({
+
+    const kind: 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency' =
+      (data.kind || data.type || 'association') as any;
+
+    let labels: any[] = [];
+    if (kind === 'association') {
+      if (data.labels?.length) labels = data.labels;
+      else if (data.cardinality) {
+        labels = [
+          { position: 0.1, attrs: { text: { text: data.cardinality.source || '' } } },
+          { position: 0.9, attrs: { text: { text: data.cardinality.target || '' } } }
+        ];
+      }
+    }
+
+    const linkEl = new this.joint.dia.Link({
       id,
-      name: 'Relacion',
-      kind,                               // 👈 guarda el tipo en el modelo
-      source: { id: data.sourceId, port: data.sourcePort },
-      target: { id: data.targetId, port: data.targetPort },
-      attrs: this.attrsForKind(kind),     // 👈 aplica estilo correcto
-      labels: data.labels || [],
-      vertices: data.vertices || []
+      source: { id: data.sourceId },
+      target: { id: data.targetId },
+      labels,
+      vertices: data.vertices || [],   // 👈 usa los vértices recibidos
+      attrs: this.attrsForKind(kind),
     });
-    this.graph.addCell(link);
+
+    linkEl.set('kind', kind);
+    this.graph.addCell(linkEl);
+
     setTimeout(() => this.suppress.delete(id), 0);
   }
+
+
+
+  // private addRemoteLink(id: string, data: LinkData) {
+  //   this.suppress.add(id);
+  //   const kind = (data.kind as any) || 'association';
+  //   const link = new this.joint.dia.Link({
+  //     id,
+  //     name: 'Relacion',
+  //     kind,                               // 👈 guarda el tipo en el modelo
+  //     source: { id: data.sourceId, port: data.sourcePort },
+  //     target: { id: data.targetId, port: data.targetPort },
+  //     attrs: this.attrsForKind(kind),     // 👈 aplica estilo correcto
+  //     labels: data.labels || [],
+  //     vertices: data.vertices || []
+  //   });
+  //   this.graph.addCell(link);
+  //   setTimeout(() => this.suppress.delete(id), 0);
+  // }
 
 
   // private addRemoteLink(id: string, data: LinkData) {

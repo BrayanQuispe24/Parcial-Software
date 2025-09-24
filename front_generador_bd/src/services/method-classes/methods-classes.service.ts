@@ -12,17 +12,56 @@ export class MethodsClassesService {
 
   constructor() { }
 
+  //aqui
+  linkToJointJSElement(link: any): any {
+    let labels: any[];
+
+    if (link.labels?.length) {
+      // Caso 2: Gemini ya devolvió labels
+      labels = link.labels;
+    } else if (link.cardinality) {
+      // Caso 1: Gemini devolvió cardinalidades
+      labels = [
+        {
+          position: 0.1,
+          attrs: { text: { text: link.cardinality.source || '' } }
+        },
+        {
+          position: 0.9,
+          attrs: { text: { text: link.cardinality.target || '' } }
+        }
+      ];
+    } else {
+      // Sin labels ni cardinalidad
+      labels = [];
+    }
+
+    return new this.joint.dia.Link({
+      id: link.id,
+      name: 'Relacion',
+      kind: link.kind || link.type || 'association',
+      source: { id: link.sourceId },
+      target: { id: link.targetId },
+      attrs: {
+        '.connection': { stroke: '#333333', 'stroke-width': 2 },
+        '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+      },
+      labels
+    });
+  }
+
+
 
   buildRelationship(sourceId?: string, targetId?: string) {
-     return new this.joint.dia.Link({
-    name: 'Relacion',
-    kind: 'association',       // 👈 NUEVO
-    source: sourceId ? { id: sourceId } : undefined,
-    target: targetId ? { id: targetId } : undefined,
-    attrs: {
-      '.connection': { stroke: '#333333', 'stroke-width': 2 },
-      '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
-    },
+    return new this.joint.dia.Link({
+      name: 'Relacion',
+      kind: 'association',       // 👈 NUEVO
+      source: sourceId ? { id: sourceId } : undefined,
+      target: targetId ? { id: targetId } : undefined,
+      attrs: {
+        '.connection': { stroke: '#333333', 'stroke-width': 2 },
+        '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
+      },
       labels: [
         { position: { distance: 20, offset: -10 }, attrs: { text: { text: '0..1', fill: '#333' } } }, // origen
         { position: { distance: -20, offset: -10 }, attrs: { text: { text: '1..*', fill: '#333' } } } // destino
@@ -298,42 +337,72 @@ export class MethodsClassesService {
     return joinClass; // útil si luego quieres posicionar o usar el id
   }
   // === Ajusta alto de compartimentos y del elemento según el texto ===
-  private autoResizeUmlClass = (model: any) => {
-    if (!model || !model.isElement()) return;
+  // === Ajusta alto de compartimentos y del elemento según el texto ===
+  // === Ajusta alto de compartimentos y del elemento según el texto ===
+  // === Ajusta alto de compartimentos y del elemento según el texto ===
 
-    const NAME_H = 30;     // altura fija para nombre
-    const LINE_H = 18;     // altura aproximada de línea de texto
-    const PAD_V = 10;      // padding extra arriba/abajo
-    const FIXED_W = 180;   // 👈 ancho fijo estándar
+  // === Ajusta alto de compartimentos con tamaño fijo por línea ===
+private autoResizeUmlClass = (model: any) => {
+  if (!model || !model.isElement()) return;
 
-    // Leer textos actuales
+  // === Constantes ===
+  const NAME_H = 30;   // altura fija del título
+  const LINE_H = 18;   // altura por línea
+  const FIXED_W = 180; // ancho fijo
+
+  // Ejecutar después de renderizado (evita BBox vacío/chueco)
+  requestAnimationFrame(() => {
+    // --- Texto actual ---
     const attrsText = (model.attr('.uml-class-attrs-text/text') || '') as string;
     const methsText = (model.attr('.uml-class-methods-text/text') || '') as string;
 
-    const attrsLines = Math.max(1, attrsText.split('\n').length);
-    const methsLines = Math.max(1, methsText.split('\n').length);
+    // --- Contar líneas (no vacías) ---
+    const attrsLines = attrsText.split('\n').filter(l => l.trim() !== '').length;
+    const methsLines = methsText.split('\n').filter(l => l.trim() !== '').length;
 
-    // Calcular alturas dinámicas
-    const ATTRS_H = attrsLines * LINE_H + PAD_V;
-    const METHS_H = methsLines * LINE_H + PAD_V;
+    // --- Alturas dinámicas ---
+    const ATTRS_H = Math.max(LINE_H, attrsLines * LINE_H);
+    const METHS_H = Math.max(LINE_H, methsLines * LINE_H);
 
-    // Ajustar rectángulos
+    // --- Rectángulos ---
     model.attr('.uml-class-name-rect/height', NAME_H);
-    model.attr('.uml-class-attrs-rect/height', ATTRS_H);
-    model.attr('.uml-class-methods-rect/height', METHS_H);
 
+    model.attr('.uml-class-attrs-rect/height', ATTRS_H);
     model.attr('.uml-class-attrs-rect/refY', NAME_H);
+
+    model.attr('.uml-class-methods-rect/height', METHS_H);
     model.attr('.uml-class-methods-rect/refY', NAME_H + ATTRS_H);
 
-    // Calcular altura total
-    const totalH = NAME_H + ATTRS_H + METHS_H;
+    // --- Texto nombre (centrado en bloque título) ---
+    model.attr('.uml-class-name-text/refX', FIXED_W / 2);
+    model.attr('.uml-class-name-text/refY', NAME_H / 2);
+    model.attr('.uml-class-name-text/textAnchor', 'middle');
+    model.attr('.uml-class-name-text/yAlignment', 'middle');
 
-    // 👇 Redimensionar con ancho fijo
+    // --- Texto atributos (arriba del rectángulo) ---
+    model.attr('.uml-class-attrs-text/refX', 8);
+    model.attr('.uml-class-attrs-text/refY', NAME_H + 5);
+    model.attr('.uml-class-attrs-text/textAnchor', 'start');
+    model.attr('.uml-class-attrs-text/yAlignment', 'top');
+
+    // --- Texto métodos (arriba del rectángulo) ---
+    model.attr('.uml-class-methods-text/refX', 8);
+    model.attr('.uml-class-methods-text/refY', NAME_H + ATTRS_H + 14);
+    model.attr('.uml-class-methods-text/textAnchor', 'start');
+    model.attr('.uml-class-methods-text/yAlignment', 'top');
+
+    // --- Redimensionar clase entera ---
+    const totalH = NAME_H + ATTRS_H + METHS_H;
     model.resize(FIXED_W, totalH);
 
-    // Reajustar puertos al borde del nuevo tamaño
+    // --- Actualizar puertos según tamaño final ---
     this.updatePorts(model);
-  };
+  });
+};
+
+
+
+
   /**
    * Crea una clase UML con la estructura de tres compartimentos
    */
@@ -399,7 +468,7 @@ export class MethodsClassesService {
       throw error;
     }
   }
-  private createUmlNamespace(): void {
+  createUmlNamespace(): void {
     if (!this.joint) return;
     if (this.joint.shapes.custom && this.joint.shapes.custom.UMLClass) {
       return;
@@ -416,13 +485,24 @@ export class MethodsClassesService {
         rect: { strokeWidth: 2, stroke: '#2196f3', fill: '#ffffff' },
 
         '.uml-class-name-rect': {
-          refWidth: '100%', height: 30, fill: '#e3f2fd', stroke: '#2196f3'
+          refWidth: '100%',
+          height: 30,
+          fill: '#e3f2fd',
+          stroke: '#4f46e5',
+          rx: 8, ry: 4
         },
         '.uml-class-attrs-rect': {
-          refY: 30, refWidth: '100%', height: 40, fill: '#ffffff', stroke: '#2196f3'
+          refWidth: '100%',
+          height: 40,
+          fill: '#ffffff',
+          stroke: '#4f46e5',
         },
         '.uml-class-methods-rect': {
-          refY: 70, refWidth: '100%', height: 40, fill: '#ffffff', stroke: '#2196f3'
+          refWidth: '100%',
+          height: 40,
+          fill: '#ffffff',
+          stroke: '#4f46e5',
+          ry: 4
         },
 
         '.uml-class-name-text': {
@@ -436,30 +516,24 @@ export class MethodsClassesService {
           text: 'Entidad'
         },
         '.uml-class-attrs-text': {
-          ref: '.uml-class-attrs-rect',
-          refY: 10, refX: 10,
           textAnchor: 'start',
           fontSize: 12,
           fill: '#000000',
           text: '',
-          textWrap: { width: -20, height: 'auto' }, // ancho ≈ (width - 20px de márgenes)
           whiteSpace: 'pre-wrap'
         },
         '.uml-class-methods-text': {
-          ref: '.uml-class-methods-rect',
-          refY: 10, refX: 10,
           textAnchor: 'start',
           fontSize: 12,
           fill: '#000000',
           text: '',
-          textWrap: { width: -20, height: 'auto' },
           whiteSpace: 'pre-wrap'
         }
       },
       ports: {
         groups: {
           inout: {
-            position: { name: 'boundary' }, // 👈 siempre en borde
+            position: { name: 'boundary' },
             attrs: {
               circle: {
                 r: 5,
@@ -472,9 +546,7 @@ export class MethodsClassesService {
             }
           }
         }
-
       },
-
     }, {
       markup: [
         '<g class="rotatable">',
@@ -486,12 +558,11 @@ export class MethodsClassesService {
         '<text class="uml-class-name-text"/>',
         '<text class="uml-class-attrs-text"/>',
         '<text class="uml-class-methods-text"/>',
-        '<g class="ports"/>',  // 👈 contenedor de puertos
+        '<g class="ports"/>',
         '</g>'
       ].join(''),
     });
 
-    // 🔹 Método updateRectangles para refrescar textos
     this.joint.shapes.custom.UMLClass.prototype.updateRectangles = function () {
       this.attr({
         '.uml-class-name-text': { text: this.get('name') || '' },
@@ -505,8 +576,8 @@ export class MethodsClassesService {
       this.updateRectangles();
       this.constructor.__super__.initialize.apply(this, arguments);
     };
-
   }
+
   private updatePorts(model: any) {
     if (!model || !model.isElement()) return;
 

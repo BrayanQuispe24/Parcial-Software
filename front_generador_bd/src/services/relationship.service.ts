@@ -117,11 +117,11 @@ export class RelationshipService {
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
-              '.connection': { stroke: '#333', 'stroke-width': 2 },
+              '.connection': { stroke: '#d63108ff', 'stroke-width': 2 },
               '.marker-target': {
                 d: 'M 20 0 L 0 10 L 20 20 z',
                 fill: '#fff',
-                stroke: '#333'
+                stroke: '#d63108ff'
               }
             }
           })
@@ -136,11 +136,11 @@ export class RelationshipService {
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
-              '.connection': { stroke: '#333', 'stroke-width': 2 },
+              '.connection': { stroke: '#3b21d1ff', 'stroke-width': 2 },
               '.marker-source': {
                 d: 'M 0 10 L 10 0 L 20 10 L 10 20 z',
                 fill: '#fff',
-                stroke: '#333'
+                stroke: '#3b21d1ff'
               }
             }
           })
@@ -155,10 +155,10 @@ export class RelationshipService {
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
-              '.connection': { stroke: '#333', 'stroke-width': 2 },
+              '.connection': { stroke: 'rgba(9, 160, 4, 1)', 'stroke-width': 2 },
               '.marker-source': {
                 d: 'M 0 10 L 10 0 L 20 10 L 10 20 z',
-                fill: '#333'
+                fill: '#fff'
               }
             }
           })
@@ -174,13 +174,13 @@ export class RelationshipService {
             target: { id: targetId },
             attrs: {
               '.connection': {
-                stroke: '#333',
+                stroke: '#1013caff',
                 'stroke-width': 2,
                 'stroke-dasharray': '4 2'
               },
               '.marker-target': {
                 d: 'M 10 0 L 0 5 L 10 10 z',
-                fill: '#333'
+                fill: '#fff'
               }
             }
           })

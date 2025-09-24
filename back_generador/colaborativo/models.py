@@ -20,8 +20,8 @@ class Message(models.Model):
 # --- NUEVO: Estado colaborativo ---
 class Diagram(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=120, unique=True, default="Untitled")  # <- unique=True
-    snapshot = models.JSONField(default=dict)   # {"nodes": {...}, "links": {...}}
+    name = models.CharField(max_length=120, unique=True)   # 👈 sin default
+    snapshot = models.JSONField(default=dict)
     version = models.IntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
 

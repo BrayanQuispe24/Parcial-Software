@@ -38,11 +38,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'colaborativo',
-    'channels'
+    'channels',
+    'gemini_api'
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -51,6 +54,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+    "http://angular-app:4000",
+]
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'diagramador.urls'
 
@@ -84,6 +92,15 @@ DATABASES = {
         'HOST': 'postgres',
         'PORT': '5432'
     }
+     #Para docker
+    #   'default': {
+    #     'ENGINE': 'django.db.backends.postgresql',
+    #     'NAME': 'colaborativodb',
+    #     'USER': 'postgres',
+    #     'PASSWORD': '071104',
+    #     'HOST': 'postgres',
+    #     'PORT': '5432'
+    #     }
     # "default": {
     #     "ENGINE": "django.db.backends.postgresql",
     #     "NAME": os.environ.get("DB_NAME", "colaborativodb"),
@@ -148,3 +165,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# settings.py
+SECRET_KEY = "django-super-secret-key"
+DEBUG = True
+
+# 👇 aquí directamente tu API KEY
+GEMINI_API_KEY = "AIzaSyBmUSmruxUX5v9MiXF5Hna_JM7nrCWyvkA"

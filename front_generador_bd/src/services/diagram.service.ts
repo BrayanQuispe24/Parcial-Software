@@ -2,6 +2,7 @@
 import { DiagramWsService, DiagramOp, LinkData } from './realtime/diagram-ws.service';
 import { inject, Injectable } from '@angular/core';
 import { MethodsClassesService } from './method-classes/methods-classes.service';
+import { throttle } from 'lodash';
 
 
 @Injectable({
@@ -371,20 +372,27 @@ export class DiagramService {
       this.queueLinkReplace(id, link);
     });
     // drag en vivo (broadcast efímero)
-    this.paper.on('element:pointermove', (view: any) => {
+    this.paper.on('element:pointermove', throttle((view: any) => {
       if (!this.ws) return;
-      const m = view.model;
-      this.ws.sendDrag(m.id, m.position());
-    });
+      this.ws.sendDrag(view.model.id, view.model.position());
+    }, 50)); // envía como máximo 20fps
 
     // drag end (persistir posición)
+    // angular/services/diagram.service.ts
     this.paper.on('element:pointerup', (view: any) => {
       if (!this.ws) return;
       const m = view.model;
       const pos = m.position();
       this.ws.sendDragEnd(m.id, pos);
-      this.ws.enqueueOp({ type: 'node.update', id: m.id, patch: { position: pos } });
+      this.ws.enqueueOp({ type: 'node.update', id: m.id, patch: { position: pos } }); // ✅ Persistencia aquí
     });
+    // this.paper.on('element:pointerup', (view: any) => {
+    //   if (!this.ws) return;
+    //   const m = view.model;
+    //   const pos = m.position();
+    //   this.ws.sendDragEnd(m.id, pos);
+    //   this.ws.enqueueOp({ type: 'node.update', id: m.id, patch: { position: pos } });
+    // });
 
     // edición de textos (desde MethodsClassesService, ver parche abajo)
     this.graph.on('local:edit', ({ model }: { model: any }) => {
@@ -493,14 +501,60 @@ export class DiagramService {
   }
 
   // +++ drags remotos (efímeros) +++
+  // applyRemoteDrag(id: string, pos: { x: number; y: number }) {
+  //   const cell = this.graph.getCell(id);
+  //   if (cell?.isElement?.()) cell.position(pos.x, pos.y);
+  //     if (cell?.isElement?.()) { con esto solo se vera cuando se deje de mover
+  //   cell.transition('position', pos, { duration: 50, timingFunction: 'ease-in-out' });
+  // }
+  // }
+
+  private dragTargets = new Map<string, { x: number; y: number }>();
+  private animating = false;
+
   applyRemoteDrag(id: string, pos: { x: number; y: number }) {
-    const cell = this.graph.getCell(id);
-    if (cell?.isElement?.()) cell.position(pos.x, pos.y);
+    this.dragTargets.set(id, pos);
+    if (!this.animating) this.startAnimationLoop();
   }
+  private startAnimationLoop() {
+    this.animating = true;
+
+    const step = () => {
+      this.dragTargets.forEach((target, id) => {
+        const cell = this.graph.getCell(id);
+        if (!cell?.isElement?.()) return;
+
+        const current = cell.position();
+        const dx = target.x - current.x;
+        const dy = target.y - current.y;
+
+        // interpolación (factor 0.2 = suavizado)
+        const nextX = current.x + dx * 0.2;
+        const nextY = current.y + dy * 0.2;
+
+        cell.position(nextX, nextY);
+      });
+
+      if (this.dragTargets.size > 0) {
+        requestAnimationFrame(step);
+      } else {
+        this.animating = false;
+      }
+    };
+
+    requestAnimationFrame(step);
+  }
+
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
+    this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
-    if (cell?.isElement?.()) cell.position(pos.x, pos.y);
+    if (cell?.isElement?.()) cell.position(pos.x, pos.y); // ajuste final
   }
+
+  // applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
+  //   const cell = this.graph.getCell(id);
+  //   if (cell?.isElement?.()) cell.position(pos.x, pos.y);
+  // }
 
   // +++ helpers de alta/actualización/baja remota +++
   private addRemoteNode(id: string, data: any) {

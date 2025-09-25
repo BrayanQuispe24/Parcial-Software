@@ -8,6 +8,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=071104
       - CORS_ALLOWED_ORIGINS=http://localhost:4000,http://angular-app:4000
+      - REDIS_URL=redis://redis:6379/0 # 👈 para Channels
     volumes:
       - ./back_generador:/app
     ports:
@@ -16,16 +17,14 @@ services:
     tty: true
     depends_on:
       - angular-app
+      - redis # 👈 agregamos dependencia
     networks:
       - backend
       - frontend
-    #command: >
-    #  sh -c "python manage.py migrate &&
-    #       exec daphne -b 0.0.0.0 -p 8000 ${ASGI_APP:-diagramador.asgi:application}"
     command: >
-     sh -c "python manage.py makemigrations && python manage.py migrate &&
-         exec daphne -b 0.0.0.0 -p 8000 diagramador.asgi:application"
-
+      sh -c "python manage.py makemigrations &&
+             python manage.py migrate &&
+             exec daphne -b 0.0.0.0 -p 8000 diagramador.asgi:application"
 
   angular-app:
     build: ./front_generador_bd/
@@ -34,13 +33,13 @@ services:
       - "4000:4000"
     environment:
       - API_URL=http://web:8000
-      - GENERATOR_URL=http://generator:8080   #
+      - GENERATOR_URL=http://generator:8080
     networks:
       - frontend
       - backend
 
   generator:
-    build: ./api-generator/api-generator/   # 👈 Carpeta donde está tu Dockerfile del generador
+    build: ./api-generator/api-generator/
     container_name: spring_generator
     ports:
       - "8080:8080"
@@ -51,8 +50,21 @@ services:
       - frontend
       - backend
 
+  redis:
+    # 👈 servicio nuevo
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    expose:
+      - "6379"
+    networks:
+      - backend
+
 networks:
   backend:
     external: true
   frontend:
     driver: bridge
+
+volumes:
+  redis_data:

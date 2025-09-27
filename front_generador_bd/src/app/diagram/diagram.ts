@@ -141,13 +141,20 @@ export class Diagram implements AfterViewInit {
   }
 
   private connectIfUrlStored() {
-    const url = localStorage.getItem('url');
+    let url = localStorage.getItem('url');
     if (!url) {
       console.warn("⚠️ No se encontró ningún 'url' en localStorage");
       return;
     }
-      this.methodDiagramService.openDiagram(url);
-      console.log('Bienvenido');
+
+    // // 👇 fuerza a usar WSS si la página es HTTPS
+    // if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+    //   url = url.replace('ws://', 'wss://');
+    // }
+
+    this.methodDiagramService.openDiagram(url);
+    console.log('🔗 Conectando con:', url);
   }
+
 
 }

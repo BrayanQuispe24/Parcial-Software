@@ -100,6 +100,11 @@ export class DiagramWsService {
       url = urlOrBase;
     }
 
+    // 👇 normalización global
+    if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+      url = url.replace('ws://', 'wss://');
+    }
+
     try {
       console.log("🌐 Conectando a:", url);
       this.ws = new WebSocket(url);

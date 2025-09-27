@@ -376,7 +376,7 @@ export class DiagramService {
     this.paper.on('element:pointermove', throttle((view: any) => {
       if (!this.ws) return;
       this.ws.sendDrag(view.model.id, view.model.position());
-    }, 50)); // envía como máximo 20fps
+    }, 70)); // envía como máximo 20fps
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -555,13 +555,13 @@ export class DiagramService {
   }
 
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
-    this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
     if (cell?.isElement?.()) {
-      // 🎯 Ajuste final exacto en la coordenada final enviada
-      cell.position(pos.x, pos.y);
+      // en vez de fijar directo, actualiza el target
+      this.dragTargets.set(id, pos);
     }
   }
+
 
 
 

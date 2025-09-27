@@ -556,11 +556,24 @@ export class DiagramService {
 
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
     const cell = this.graph.getCell(id);
-    if (cell?.isElement?.()) {
-      // en vez de fijar directo, actualiza el target
-      this.dragTargets.set(id, pos);
-    }
+    if (!cell?.isElement?.()) return;
+
+    const start = cell.position();
+    const dx = pos.x - start.x;
+    const dy = pos.y - start.y;
+    const duration = 150; // ms
+    const t0 = performance.now();
+
+    const animate = (t: number) => {
+      const progress = Math.min(1, (t - t0) / duration);
+      const ease = progress < 1 ? (1 - Math.pow(1 - progress, 3)) : 1; // easeOut
+      cell.position(start.x + dx * ease, start.y + dy * ease);
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
   }
+
 
 
 

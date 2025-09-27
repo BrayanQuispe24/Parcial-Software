@@ -156,8 +156,6 @@ export class DiagramService {
           this.graph?.trigger('local:link-changed', { link: linkView.model });
           return;
         }
-
-
         // 👉 si no fue sobre una etiqueta, agregamos una nueva
         const model = linkView.model;
         const newLabel = {
@@ -375,7 +373,7 @@ export class DiagramService {
     this.paper.on('element:pointermove', throttle((view: any) => {
       if (!this.ws) return;
       this.ws.sendDrag(view.model.id, view.model.position());
-    }, 50)); // envía como máximo 20fps
+    }, 100)); // envía como máximo 20fps
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -516,6 +514,7 @@ export class DiagramService {
     this.dragTargets.set(id, pos);
     if (!this.animating) this.startAnimationLoop();
   }
+
   private startAnimationLoop() {
     this.animating = true;
 
@@ -528,11 +527,18 @@ export class DiagramService {
         const dx = target.x - current.x;
         const dy = target.y - current.y;
 
-        // interpolación (factor 0.2 = suavizado)
-        const nextX = current.x + dx * 0.2;
-        const nextY = current.y + dy * 0.2;
+        // ⚡️ Interpolación (ajusta factor para suavidad vs velocidad)
+        const factor = 0.35; // 0.2 = muy suave, 0.5 = más rápido
+        const nextX = current.x + dx * factor;
+        const nextY = current.y + dy * factor;
 
-        cell.position(nextX, nextY);
+        // 📉 Si ya está casi encima, cortar y fijar exacto
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+          cell.position(target.x, target.y);
+          this.dragTargets.delete(id);
+        } else {
+          cell.position(nextX, nextY);
+        }
       });
 
       if (this.dragTargets.size > 0) {
@@ -548,8 +554,11 @@ export class DiagramService {
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
     this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
-    if (cell?.isElement?.()) cell.position(pos.x, pos.y); // ajuste final
+    if (cell?.isElement?.()) {
+      cell.position(pos.x, pos.y); // 🎯 ajuste final exacto
+    }
   }
+
 
   // applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
   //   const cell = this.graph.getCell(id);

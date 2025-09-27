@@ -46,6 +46,9 @@ export class DiagramService {
         },
         background: { color: '#4c82b8ff' },
         defaultConnector: { name: 'rounded' },
+        // ⚡️ OPTIMIZACIONES
+        async: true,                         // renderiza en lotes
+        sorting: this.joint.dia.Paper.sorting.NONE, // evita recalcular z-index
         defaultLink: () => this.methodClassesService.buildRelationship(),
 
         validateConnection: (cellViewS: any, magnetS: any, cellViewT: any, magnetT: any) => {
@@ -373,7 +376,7 @@ export class DiagramService {
     this.paper.on('element:pointermove', throttle((view: any) => {
       if (!this.ws) return;
       this.ws.sendDrag(view.model.id, view.model.position());
-    }, 100)); // envía como máximo 20fps
+    }, 50)); // envía como máximo 20fps
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -537,7 +540,7 @@ export class DiagramService {
           cell.position(target.x, target.y);
           this.dragTargets.delete(id);
         } else {
-          cell.position(nextX, nextY);
+          cell.translate(nextX - current.x, nextY - current.y);
         }
       });
 
@@ -555,9 +558,11 @@ export class DiagramService {
     this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
     if (cell?.isElement?.()) {
-      cell.position(pos.x, pos.y); // 🎯 ajuste final exacto
+      // 🎯 Ajuste final exacto en la coordenada final enviada
+      cell.position(pos.x, pos.y);
     }
   }
+
 
 
   // applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {

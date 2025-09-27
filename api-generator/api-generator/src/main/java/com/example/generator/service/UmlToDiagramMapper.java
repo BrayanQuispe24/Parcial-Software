@@ -42,6 +42,22 @@ public class UmlToDiagramMapper {
 
       Multiplicity mSrc = parseMultiplicity(r.getCardinality() != null ? r.getCardinality().getSource() : null);
       Multiplicity mTgt = parseMultiplicity(r.getCardinality() != null ? r.getCardinality().getTarget() : null);
+      // 🔹 Generalización (herencia)
+      if ("generalization".equalsIgnoreCase(r.getType())) {
+        EntityModel child = entities.get(r.getSourceId());
+        EntityModel parent = entities.get(r.getTargetId());
+
+        if (child != null && parent != null) {
+          child.setExtendsName(tgtName);
+
+          if (parent.getChildren() == null) {
+            parent.setChildren(new ArrayList<>());
+          }
+          parent.getChildren().add(srcName);
+        }
+        continue;
+      }
+
 
       // Join-entity explícita → modelar como 1..N alrededor de la join
       if (associativeIds.contains(r.getTargetId())) {

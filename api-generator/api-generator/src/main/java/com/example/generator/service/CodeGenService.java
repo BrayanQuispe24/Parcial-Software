@@ -159,6 +159,13 @@ public class CodeGenService {
     m.put("manyToManyOwning", manyToManyOwning);
     m.put("manyToManyInverse", manyToManyInverse);
 
+    // 🔹 Herencia (generalization)
+    m.put("parentName", e.getExtendsName());
+    m.put("isChild", e.getExtendsName() != null);
+
+    boolean isParent = e.getChildren() != null && !e.getChildren().isEmpty();
+    m.put("isParent", isParent);
+
     return m;
   }
 

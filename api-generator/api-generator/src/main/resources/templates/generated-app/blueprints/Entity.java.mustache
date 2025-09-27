@@ -5,7 +5,10 @@ import java.util.*;
 
 @Entity
 @Table(name = "{{table}}")
-public class {{name}} {
+{{#isParent}}
+@Inheritance(strategy = InheritanceType.JOINED)
+{{/isParent}}
+public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
 
   // ===== Campos simples =====
   {{#fields}}
@@ -54,7 +57,6 @@ public class {{name}} {
   @ManyToMany(mappedBy = "{{mappedBy}}")
   private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/manyToManyInverse}}
-
 
   // ===== Getters & Setters =====
   {{#fields}}

@@ -170,4 +170,4 @@ SECRET_KEY = "django-super-secret-key"
 DEBUG = True
 
 # 👇 aquí directamente tu API KEY
-GEMINI_API_KEY = "AIzaSyBmUSmruxUX5v9MiXF5Hna_JM7nrCWyvkA"
+GEMINI_API_KEY = "AIzaSyAJyetLp9YWRyFd9pf83QC1fl9MAsYjMws"

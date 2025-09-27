@@ -372,10 +372,27 @@ export class DiagramService {
       this.queueLinkReplace(id, link);
     });
     // drag en vivo (broadcast efímero)
+    let lastSentPos: { x: number; y: number } | null = null;
     this.paper.on('element:pointermove', throttle((view: any) => {
       if (!this.ws) return;
-      this.ws.sendDrag(view.model.id, view.model.position());
-    }, 50)); // envía como máximo 20fps
+
+      const pos = view.model.position();
+
+      if (!lastSentPos) {
+        lastSentPos = pos;
+        this.ws.sendDrag(view.model.id, pos);
+        return;
+      }
+
+      const dx = Math.abs(pos.x - lastSentPos.x);
+      const dy = Math.abs(pos.y - lastSentPos.y);
+
+      // 👉 solo si hay diferencia mayor a 5 px
+      if (dx > 5 || dy > 5) {
+        lastSentPos = pos;
+        this.ws.sendDrag(view.model.id, pos);
+      }
+    }, 50)); // throttle sigue limitando la frecuencia
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -798,7 +815,7 @@ export class DiagramService {
         this.ws!.enqueueOp({ type: 'link.remove', id: lid });
         this.ws!.enqueueOp({ type: 'link.add', id: lid, data });
       }
-    }, 80); // 80–120ms funciona bien
+    }, 120); // 80–120ms funciona bien
   }
 
   /**

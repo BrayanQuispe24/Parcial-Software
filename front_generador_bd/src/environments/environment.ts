@@ -7,8 +7,8 @@
 // };
 
 export const environment = {
-  production: false,
-  wsBaseUrl: 'djangoUML-sw1.fournext.me',
-  baseUrl:'https://djangoUML-sw1.fournext.me',
-  generatorUrl:'https://springUML-sw1.fournext.me'
+  production: true,
+  wsBaseUrl: 'ws://ec2-18-215-174-58.compute-1.amazonaws.com:8000',
+  baseUrl:'http://ec2-18-215-174-58.compute-1.amazonaws.com:8000',
+  generatorUrl:'http://ec2-18-215-174-58.compute-1.amazonaws.com:8080'
 };

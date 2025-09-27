@@ -13,7 +13,7 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // todos los endpoints
-                        .allowedOrigins("https://frontUML-sw1.fournext.me","http://localhost:4200") // tu Angular
+                        .allowedOrigins("http://ec2-18-215-174-58.compute-1.amazonaws.com:4000","http://localhost:4200","http://localhost:4000") // tu Angular
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);

@@ -1,7 +1,7 @@
 import requests, json, re
 from django.conf import settings
 
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 FIXTURE_PROMPT = """
 Eres un generador de datos ficticios en base a un diagrama UML en JSON.

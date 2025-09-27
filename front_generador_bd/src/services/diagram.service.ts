@@ -46,9 +46,6 @@ export class DiagramService {
         },
         background: { color: '#4c82b8ff' },
         defaultConnector: { name: 'rounded' },
-        // ⚡️ OPTIMIZACIONES
-        async: true,                         // renderiza en lotes
-        sorting: this.joint.dia.Paper.sorting.NONE, // evita recalcular z-index
         defaultLink: () => this.methodClassesService.buildRelationship(),
 
         validateConnection: (cellViewS: any, magnetS: any, cellViewT: any, magnetT: any) => {
@@ -159,6 +156,8 @@ export class DiagramService {
           this.graph?.trigger('local:link-changed', { link: linkView.model });
           return;
         }
+
+
         // 👉 si no fue sobre una etiqueta, agregamos una nueva
         const model = linkView.model;
         const newLabel = {
@@ -376,7 +375,7 @@ export class DiagramService {
     this.paper.on('element:pointermove', throttle((view: any) => {
       if (!this.ws) return;
       this.ws.sendDrag(view.model.id, view.model.position());
-    }, 70)); // envía como máximo 20fps
+    }, 50)); // envía como máximo 20fps
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -517,7 +516,6 @@ export class DiagramService {
     this.dragTargets.set(id, pos);
     if (!this.animating) this.startAnimationLoop();
   }
-
   private startAnimationLoop() {
     this.animating = true;
 
@@ -530,18 +528,11 @@ export class DiagramService {
         const dx = target.x - current.x;
         const dy = target.y - current.y;
 
-        // ⚡️ Interpolación (ajusta factor para suavidad vs velocidad)
-        const factor = 0.35; // 0.2 = muy suave, 0.5 = más rápido
-        const nextX = current.x + dx * factor;
-        const nextY = current.y + dy * factor;
+        // interpolación (factor 0.2 = suavizado)
+        const nextX = current.x + dx * 0.2;
+        const nextY = current.y + dy * 0.2;
 
-        // 📉 Si ya está casi encima, cortar y fijar exacto
-        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
-          cell.position(target.x, target.y);
-          this.dragTargets.delete(id);
-        } else {
-          cell.translate(nextX - current.x, nextY - current.y);
-        }
+        cell.position(nextX, nextY);
       });
 
       if (this.dragTargets.size > 0) {
@@ -555,28 +546,10 @@ export class DiagramService {
   }
 
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
+    this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
-    if (!cell?.isElement?.()) return;
-
-    const start = cell.position();
-    const dx = pos.x - start.x;
-    const dy = pos.y - start.y;
-    const duration = 150; // ms
-    const t0 = performance.now();
-
-    const animate = (t: number) => {
-      const progress = Math.min(1, (t - t0) / duration);
-      const ease = progress < 1 ? (1 - Math.pow(1 - progress, 3)) : 1; // easeOut
-      cell.position(start.x + dx * ease, start.y + dy * ease);
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-
-    requestAnimationFrame(animate);
+    if (cell?.isElement?.()) cell.position(pos.x, pos.y); // ajuste final
   }
-
-
-
-
 
   // applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
   //   const cell = this.graph.getCell(id);

@@ -95,7 +95,7 @@ export class DiagramWsService {
     if (diagramId) {
       const base = urlOrBase.replace(/\/+$/, '');
       const qs = token ? `?token=${encodeURIComponent(token)}` : '';
-      url = `${base}/ws/diagram/${encodeURIComponent(diagramId)}/` + qs;
+      url = `${base}/wss/diagram/${encodeURIComponent(diagramId)}/` + qs;
     } else {
       url = urlOrBase;
     }
@@ -114,7 +114,7 @@ export class DiagramWsService {
   connectRoom(baseUrl: string, roomId: string, token?: string) {
     const base = baseUrl.replace(/\/+$/, '');
     const qs = token ? `?token=${encodeURIComponent(token)}` : '';
-    const url = `${base}/ws/room/${encodeURIComponent(roomId)}/` + qs;
+    const url = `${base}/wss/room/${encodeURIComponent(roomId)}/` + qs;
 
     console.log("🌐 Conectar a room:", url);
     this.ws = new WebSocket(url);

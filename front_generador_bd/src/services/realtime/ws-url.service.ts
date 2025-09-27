@@ -11,11 +11,11 @@ export class WsUrlService {
   }
 
   chat(room: string, host?: string, port = 8000) {
-    return `${this.base(host, port)}/ws/chat/${encodeURIComponent(room)}/`;
+    return `${this.base(host, port)}/wss/chat/${encodeURIComponent(room)}/`;
   }
 
   diagram(diagramId: string, token?: string, host?: string, port = 8000) {
-    const base = `${this.base(host, port)}/ws/diagram/${encodeURIComponent(diagramId)}/`;
+    const base = `${this.base(host, port)}/wss/diagram/${encodeURIComponent(diagramId)}/`;
     return token ? `${base}?token=${encodeURIComponent(token)}` : base;
   }
 

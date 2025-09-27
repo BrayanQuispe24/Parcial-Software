@@ -12,6 +12,6 @@
 export const environment = {
   production: false,
   wsBaseUrl: 'djangoUML-sw1.fournext.me',
-  baseUrl:'https://django-sw1.fournext.me',
-  generatorUrl:'https://spring-sw1.fournext.me'
+  baseUrl:'https://djangoUML-sw1.fournext.me',
+  generatorUrl:'https://springUML-sw1.fournext.me'
 };

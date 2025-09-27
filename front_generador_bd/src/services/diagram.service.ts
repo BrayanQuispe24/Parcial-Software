@@ -392,7 +392,7 @@ export class DiagramService {
         lastSentPos = pos;
         this.ws.sendDrag(view.model.id, pos);
       }
-    }, 50)); // throttle sigue limitando la frecuencia
+    }, 100)); // throttle sigue limitando la frecuencia
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -565,8 +565,11 @@ export class DiagramService {
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
     this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
-    if (cell?.isElement?.()) cell.position(pos.x, pos.y); // ajuste final
+    if (cell?.isElement?.()) {
+      cell.transition('position', pos, { duration: 100, timingFunction: 'ease-out' });
+    }
   }
+
 
   // applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
   //   const cell = this.graph.getCell(id);

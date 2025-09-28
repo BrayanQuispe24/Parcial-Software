@@ -357,42 +357,42 @@ export class DiagramService {
       this.ws.enqueueOp(op);
     });
     // Replica cambios de geometría (vértices) a todos
-    this.graph.on('change:vertices', (link: any) => {
-      if (!this.ws) return;
-      const id = link.id as string;
-      if (this.suppress.has(id)) return;
-      this.queueLinkReplace(id, link);
-    });
+    // this.graph.on('change:vertices', (link: any) => {
+    //   if (!this.ws) return;
+    //   const id = link.id as string;
+    //   if (this.suppress.has(id)) return;
+    //   this.queueLinkReplace(id, link);
+    // });
     //aqui
     // 🔹 Cambios en la conexión (cuando arrastras source o target)
-    this.graph.on('change:source change:target', (link: any) => {
-      if (!this.ws) return;
-      const id = link.id as string;
-      if (this.suppress.has(id)) return;
-      this.queueLinkReplace(id, link);
-    });
+    // this.graph.on('change:source change:target', (link: any) => {
+    //   if (!this.ws) return;
+    //   const id = link.id as string;
+    //   if (this.suppress.has(id)) return;
+    //   this.queueLinkReplace(id, link);
+    // });
     // drag en vivo (broadcast efímero)
-    let lastSentPos: { x: number; y: number } | null = null;
-    this.paper.on('element:pointermove', throttle((view: any) => {
-      if (!this.ws) return;
+    // let lastSentPos: { x: number; y: number } | null = null;
+    // this.paper.on('element:pointermove', throttle((view: any) => {
+    //   if (!this.ws) return;
 
-      const pos = view.model.position();
+    //   const pos = view.model.position();
 
-      if (!lastSentPos) {
-        lastSentPos = pos;
-        this.ws.sendDrag(view.model.id, pos);
-        return;
-      }
+    //   if (!lastSentPos) {
+    //     lastSentPos = pos;
+    //     this.ws.sendDrag(view.model.id, pos);
+    //     return;
+    //   }
 
-      const dx = Math.abs(pos.x - lastSentPos.x);
-      const dy = Math.abs(pos.y - lastSentPos.y);
+    //   const dx = Math.abs(pos.x - lastSentPos.x);
+    //   const dy = Math.abs(pos.y - lastSentPos.y);
 
-      // 👉 solo si hay diferencia mayor a 5 px
-      if (dx > 5 || dy > 5) {
-        lastSentPos = pos;
-        this.ws.sendDrag(view.model.id, pos);
-      }
-    }, 100)); // throttle sigue limitando la frecuencia
+    //   // 👉 solo si hay diferencia mayor a 5 px
+    //   if (dx > 5 || dy > 5) {
+    //     lastSentPos = pos;
+    //     this.ws.sendDrag(view.model.id, pos);
+    //   }
+    // }, 100)); // throttle sigue limitando la frecuencia
 
     // drag end (persistir posición)
     // angular/services/diagram.service.ts
@@ -402,6 +402,18 @@ export class DiagramService {
       const pos = m.position();
       this.ws.sendDragEnd(m.id, pos);
       this.ws.enqueueOp({ type: 'node.update', id: m.id, patch: { position: pos } }); // ✅ Persistencia aquí
+    });
+
+    // 👉 añade aquí el de las relaciones
+    this.paper.on('link:pointerup', (view: any) => {
+      if (!this.ws) return;
+      const link = view.model;
+      const id = link.id as string;
+      if (this.suppress.has(id)) return;
+
+      const data = this.serializeLink(link);
+      this.ws.enqueueOp({ type: 'link.remove', id });
+      this.ws.enqueueOp({ type: 'link.add', id, data });
     });
     // this.paper.on('element:pointerup', (view: any) => {
     //   if (!this.ws) return;
@@ -530,43 +542,42 @@ export class DiagramService {
   private animating = false;
 
   applyRemoteDrag(id: string, pos: { x: number; y: number }) {
-    this.dragTargets.set(id, pos);
-    if (!this.animating) this.startAnimationLoop();
+    // this.dragTargets.set(id, pos);
+    // if (!this.animating) this.startAnimationLoop();
   }
-  private startAnimationLoop() {
-    this.animating = true;
+  // private startAnimationLoop() {
+  //   this.animating = true;
 
-    const step = () => {
-      this.dragTargets.forEach((target, id) => {
-        const cell = this.graph.getCell(id);
-        if (!cell?.isElement?.()) return;
+  //   const step = () => {
+  //     this.dragTargets.forEach((target, id) => {
+  //       const cell = this.graph.getCell(id);
+  //       if (!cell?.isElement?.()) return;
 
-        const current = cell.position();
-        const dx = target.x - current.x;
-        const dy = target.y - current.y;
+  //       const current = cell.position();
+  //       const dx = target.x - current.x;
+  //       const dy = target.y - current.y;
 
-        // interpolación (factor 0.2 = suavizado)
-        const nextX = current.x + dx * 0.2;
-        const nextY = current.y + dy * 0.2;
+  //       // interpolación (factor 0.2 = suavizado)
+  //       const nextX = current.x + dx * 0.2;
+  //       const nextY = current.y + dy * 0.2;
 
-        cell.position(nextX, nextY);
-      });
+  //       cell.position(nextX, nextY);
+  //     });
 
-      if (this.dragTargets.size > 0) {
-        requestAnimationFrame(step);
-      } else {
-        this.animating = false;
-      }
-    };
+  //     if (this.dragTargets.size > 0) {
+  //       requestAnimationFrame(step);
+  //     } else {
+  //       this.animating = false;
+  //     }
+  //   };
 
-    requestAnimationFrame(step);
-  }
+  //   requestAnimationFrame(step);
+  // }
 
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
-    this.dragTargets.delete(id);
     const cell = this.graph.getCell(id);
     if (cell?.isElement?.()) {
-      cell.transition('position', pos, { duration: 100, timingFunction: 'ease-out' });
+      cell.position(pos.x, pos.y); // directo, sin rebotes
     }
   }
 

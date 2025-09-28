@@ -1,8 +1,9 @@
-import requests, json, re
+import requests, json, re, random
 from django.conf import settings
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
+# 🔹 Prompt
 FIXTURE_PROMPT = """
 Eres un generador de datos ficticios en base a un diagrama UML en JSON.
 
@@ -22,26 +23,31 @@ Debes responder SOLO con un JSON válido de la forma:
 ⚠️ Reglas importantes:
 - Genera {count} registros por cada clase.
 - Usa exactamente los atributos listados en "attributes".
-- Además, LEE SIEMPRE las relaciones desde la sección "relationships" y AGREGA las claves foráneas necesarias:
-  - Si la relación es de tipo "association" con cardinalidad { "source": "0..1", "target": "1..*" }
-    → entonces el lado *source* debe tener un campo `targetName_id` como FK hacia el lado *target*.
-  - Si ambos lados son "0..1"
-    → uno de los lados (normalmente el source) debe tener un campo `targetName_id` que puede ser NULL.
-  - Si un lado es "1"
-    → el FK es obligatorio (no null).
-- Si ya existe una clase intermedia explícita en "classes" (ej: `Perro_Persona`), genera registros en esa clase con IDs válidos de las tablas relacionadas.
-- Respeta la consistencia referencial: los IDs usados en FKs deben existir en los fixtures de la tabla referenciada.
-- Los datos deben ser ficticios pero realistas (nombres, direcciones, razas, etc.).
-- No inventes atributos adicionales salvo los FKs requeridos por las relaciones.
-- No devuelvas texto adicional, solo el JSON con "fixtures".
+- Agrega FKs según relaciones:
+  - **Generalization (JOINED)**:
+    - La superclase guarda los atributos comunes.
+    - La subclase usa el MISMO id como PK y FK a la superclase.
+    - La subclase NO repite atributos de la superclase.
+  - **Association (0..1 → 1..*)**:
+    - El lado "1..*" DEBE incluir un campo `sourceName_id` o `targetName_id`.
+    - El lado "0..1" nunca lleva FK.
+  - **Aggregation**:
+    - El lado "parte" DEBE incluir un campo `targetName_id`, el valor puede ser NULL.
+  - **Composition**:
+    - El lado "parte" DEBE incluir un campo `targetName_id` y su valor NUNCA puede ser NULL.
+- 🚫 Nunca pongas FKs en la superclase si no corresponde (ej: Persona NO debe tener pato_id, gato_id, galolo_id).
+- Respeta la consistencia referencial: los IDs en FKs deben existir.
+- Los datos deben ser ficticios pero realistas.
+- No inventes atributos extra.
+- No devuelvas texto adicional, solo JSON con "fixtures".
 """
 
-
+# 🔹 Extrae JSON válido de la respuesta de Gemini
 def extract_json(text: str) -> str:
     match = re.search(r"\{.*\}", text, re.DOTALL)
     return match.group(0) if match else "{}"
 
-
+# 🔹 Llama a Gemini
 def generate_test_data_with_gemini(diagram: dict, count: int = 5) -> dict:
     api_key = getattr(settings, "GEMINI_API_KEY", None)
     if not api_key:
@@ -78,38 +84,110 @@ def generate_test_data_with_gemini(diagram: dict, count: int = 5) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
+# 🔹 Normaliza los IDs por tabla
+def normalize_ids(fixtures: dict) -> dict:
+    """
+    Reindexa los IDs de cada tabla desde 1..N consecutivo.
+    """
+    for table, rows in fixtures.get("fixtures", {}).items():
+        for idx, row in enumerate(rows, start=1):
+            if "id" in row:
+                row["id"] = idx
+    return fixtures
 
-def fixtures_to_sql(fixtures: dict) -> list[str]:
+# 🔹 Analiza relaciones UML
+def analyze_relationships(diagram: dict):
+    inheritance = {}
+    aggregation = []
+    composition = []
+    associations = []
+
+    for rel in diagram.get("relationships", []):
+        src = rel["sourceName"].lower()
+        tgt = rel["targetName"].lower()
+        rel_type = rel["type"].lower()
+
+        if rel_type == "generalization":
+            inheritance[src.capitalize()] = tgt.capitalize()
+
+        elif rel_type == "aggregation":
+            aggregation.append(f"{src}.{tgt}_id")
+
+        elif rel_type == "composition":
+            composition.append(f"{src}.{tgt}_id")
+
+        elif rel_type == "association":
+            card = rel.get("cardinality", {})
+            if card.get("target") == "1..*":
+                associations.append(f"{tgt}.{src}_id")
+            elif card.get("source") == "1..*":
+                associations.append(f"{src}.{tgt}_id")
+
+    return inheritance, aggregation, composition, associations
+
+# 🔹 Convierte fixtures a SQL
+def fixtures_to_sql(
+    fixtures: dict,
+    inheritance: dict = None,
+    aggregation: list[str] = None,
+    composition: list[str] = None,
+    associations: list[str] = None,
+) -> list[str]:
+    """
+    Convierte fixtures en sentencias SQL respetando UML.
+    Si faltan FKs en los fixtures, los completa automáticamente.
+    """
     sql_statements = []
-    deferred = []   # relaciones many-to-many (tablas intermedias)
-    fk_tables = []  # tablas con FKs detectadas
+    inheritance = inheritance or {}
+    aggregation = aggregation or []
+    composition = composition or []
+    associations = associations or []
+
+    # Índice rápido de IDs por tabla
+    table_ids = {
+        table.lower(): [row["id"] for row in rows if "id" in row]
+        for table, rows in fixtures.get("fixtures", {}).items()
+    }
 
     for table, rows in fixtures.get("fixtures", {}).items():
+        table_l = table.lower()
         for row in rows:
-            cols = ", ".join(row.keys())
-            values = []
-            for v in row.values():
-                if isinstance(v, str):
-                    values.append(f"'{v}'")
-                elif v is None:
-                    values.append("NULL")
-                else:
-                    values.append(str(v))
-            sql = f"INSERT INTO {table.lower()} ({cols}) VALUES ({', '.join(values)});"
+            # Herencia (JOINED)
+            if table in inheritance:
+                parent = inheritance[table]
+                parent_cols = [k for k in row.keys() if not k.endswith("_id")]
+                parent_vals = [
+                    "NULL" if row[c] is None else f"'{row[c]}'" if isinstance(row[c], str) else str(row[c])
+                    for c in parent_cols
+                ]
+                sql_statements.append(
+                    f"INSERT INTO {parent.lower()} ({', '.join(parent_cols)}) VALUES ({', '.join(parent_vals)});"
+                )
+                sql_statements.append(f"INSERT INTO {table_l} (id) VALUES ({row['id']});")
+                continue
 
-            # Heurística:
-            # - si el nombre contiene "_": probablemente es intermedia (many-to-many)
-            # - si alguna columna termina en "_id": contiene FK → va en fk_tables
-            if "_" in table:
-                deferred.append(sql)
-            elif any(col.endswith("_id") for col in row.keys()):
-                fk_tables.append(sql)
-            else:
-                sql_statements.append(sql)
+            # Caso normal
+            cols, vals = [], []
+            for k, v in row.items():
+                fk_path = f"{table_l}.{k}"
 
-    # El orden final será:
-    # 1. Tablas sin FK
-    # 2. Tablas con FK
-    # 3. Tablas intermedias
-    return sql_statements + fk_tables + deferred
+                # Autocompletar FKs si faltan
+                if fk_path in (aggregation + composition + associations) and v is None:
+                    target_table = k.replace("_id", "")
+                    if target_table in table_ids and table_ids[target_table]:
+                        v = random.choice(table_ids[target_table])
+                    elif fk_path in aggregation:
+                        v = None
+                    else:
+                        raise ValueError(f"Falta valor para FK obligatoria: {fk_path}")
+
+                cols.append(k)
+                vals.append("NULL" if v is None else f"'{v}'" if isinstance(v, str) else str(v))
+
+            sql_statements.append(
+                f"INSERT INTO {table_l} ({', '.join(cols)}) VALUES ({', '.join(vals)});"
+            )
+
+    return sql_statements
+
 

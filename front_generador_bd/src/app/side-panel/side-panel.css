@@ -1,15 +1,20 @@
 .side-panel {
   height:99%;
   width: 220px;
-  background: #ffffff;
+  background: #1d2538ff;
   border-right: 1px solid #e0e0e0;
-  padding: 12px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   justify-content:space-around;
   gap: 10px;
   font-family: 'Segoe UI', Roboto, sans-serif;
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
+}
+.container-button{
+  display:flex;
+  flex-direction: row;
+  gap:2px;
 }
 .content-users {
   padding: 16px;
@@ -53,7 +58,8 @@ hr {
 }
 button.item-content {
   width: 100%;
-  background: #4f46e5;
+  background: #0e4881ff;
+  box-shadow: 0 6px 12px rgba(59,130,246,0.4);
   color: white;
   border: none;
   border-radius: 6px;
@@ -74,7 +80,7 @@ button.item-content-delete {
   transition: background 0.2s;
 }
 button.item-content:hover {
-  background: #1976d2;
+  background: #4085f5ff;
 }
 button.item-content-delete:hover {
   background: #ec5252ff;

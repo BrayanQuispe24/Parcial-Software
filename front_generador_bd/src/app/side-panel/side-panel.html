@@ -1,35 +1,86 @@
 <div class="side-panel">
 
   <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'class' }" (cdkDragEnded)="onDragEnded($event)">
-    <div class="item-content">📦 Clase UML</div>
+    <div class="item-content"><!-- Clase UML -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="120" height="60" viewBox="0 0 120 80">
+        <rect x="5" y="5" width="110" height="70" fill="white" stroke="black" />
+        <line x1="5" y1="30" x2="115" y2="30" stroke="black" />
+        <line x1="5" y1="55" x2="115" y2="55" stroke="black" />
+        <text x="60" y="20" text-anchor="middle" font-family="Arial" font-size="12">Clase</text>
+        <text x="10" y="45" font-size="10">+ atributo: Tipo</text>
+        <text x="10" y="70" font-size="10">+ metodo(): Retorno</text>
+      </svg>
+    </div>
   </div>
   <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'association' }" (cdkDragEnded)="onDragEnded($event)">
-    <div class="item-content">🔗 Asociación</div>
+    <div class="item-content"><svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
+        <line x1="10" y1="7" x2="120" y2="7" stroke="black" />
+        <text x="60" y="18" text-anchor="middle" font-size="10">Asociación</text>
+      </svg>
+    </div>
   </div>
   <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'generalization' }" (cdkDragEnded)="onDragEnded($event)">
-    <div class="item-content">⬆️ Herencia</div>
+    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
+      <defs>
+        <marker id="triangle" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+          <path d="M0,0 L10,5 L0,10 Z" fill="white" stroke="black" />
+        </marker>
+      </defs>
+      <line x1="10" y1="10" x2="120" y2="10" stroke="black" marker-end="url(#triangle)" />
+      <text x="60" y="20" text-anchor="middle" font-size="10">Generalización</text>
+    </svg>
   </div>
   <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'aggregation' }" (cdkDragEnded)="onDragEnded($event)">
-    <div class="item-content">◇ Agregación</div>
+    <div class="item-content"><svg xmlns="http://www.w3.org/2000/svg" width="150" height="20">
+        <defs>
+          <marker id="diamond" markerWidth="14" markerHeight="14" refX="0" refY="6" orient="auto">
+            <path d="M0,6 L6,0 L12,6 L6,12 Z" fill="white" stroke="black" />
+          </marker>
+        </defs>
+        <line x1="20" y1="7" x2="130" y2="7" stroke="black" marker-start="url(#diamond)" />
+        <text x="75" y="18" text-anchor="middle" font-size="10">Agregación</text>
+      </svg>
+    </div>
   </div>
   <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'composition' }" (cdkDragEnded)="onDragEnded($event)">
-    <div class="item-content">◆ Composición</div>
+    <div class="item-content"><svg xmlns="http://www.w3.org/2000/svg" width="150" height="20">
+        <defs>
+          <marker id="blackdiamond" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto">
+            <path d="M0,6 L6,0 L12,6 L6,12 Z" fill="black" stroke="black" />
+          </marker>
+        </defs>
+        <line x1="20" y1="7" x2="130" y2="7" stroke="black" marker-start="url(#blackdiamond)" />
+        <text x="75" y="18" text-anchor="middle" font-size="10">Composición</text>
+      </svg>
+    </div>
   </div>
   <div class="palette-item" cdkDrag [cdkDragData]="{ type: 'dependency' }" (cdkDragEnded)="onDragEnded($event)">
-    <div class="item-content">⋯ Dependencia</div>
+    <div class="item-content"><svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
+        <defs>
+          <marker id="openarrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10" fill="none" stroke="black" />
+          </marker>
+        </defs>
+        <line x1="10" y1="7" x2="130" y2="7" stroke="black" stroke-dasharray="4" marker-end="url(#openarrow)" />
+        <text x="60" y="18" text-anchor="middle" font-size="10">Dependencia</text>
+      </svg>
+    </div>
   </div>
-  <hr>
+
   <div class="content-users">
     <button (click)="onSendPromp()" class="item-content">Enviar instruccion</button>
-    <textarea rows="4" cols="23" (input)="promp.set(txtpromp.value)" #txtpromp [value]="promp()"></textarea>
+    <textarea rows="4" cols="22" (input)="promp.set(txtpromp.value)" #txtpromp [value]="promp()"></textarea>
   </div>
   <div class="palette-item">
     <button (click)="onGenerateBackend()" class="item-content">Generar Backend</button>
     <input (input)="nombreBackend.set(txtnombreBackend.value)" #txtnombreBackend [value]="nombreBackend()" type="text">
   </div>
-  <div class="palette-item">
+  <div class="palette-item container-button">
     <button (click)="onExportClick()" class="export-button item-content ">
-      🧾 Exportar JSON
+      🧾 JSON
+    </button>
+          <button (click)="onExportSQL()" class="export-button item-content ">
+      🧾 SQL
     </button>
   </div>
   <div class="palette-item"> <button (click)="onGenerateSql()" class="item-content">Generar Datos SQL</button>

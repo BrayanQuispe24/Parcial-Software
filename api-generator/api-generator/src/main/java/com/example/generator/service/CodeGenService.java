@@ -93,7 +93,6 @@ public class CodeGenService {
         fm.put("nullable", f.isNullable());
         fm.put("unique", f.isUnique());
         fm.put("Name", upperFirst(f.getName()));
-        fm.put("Name", upperFirst(f.getName()));
         fields.add(fm);
         }
     }

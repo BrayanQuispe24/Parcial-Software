@@ -1,15 +1,33 @@
 <section class="contenedor">
+  <!-- Título -->
+  <div class="titulo">
+    <h1>✨ Diseña tu propio <span>diagrama UML</span></h1>
+    <p>Crea o únete a un espacio de colaboración en segundos 🚀</p>
+  </div>
+
   <!-- Botón Crear -->
-  <div class="caja-crear">
-    <input type="text" #txtnombre [value]="nombreDiagrama()" (input)="nombreDiagrama.set(txtnombre.value)"
-      placeholder="Nombre" class="input-crear">
-    <button (click)="onCreateDiagram()" class="btn-crear">CREAR</button>
+  <div class="caja caja-crear">
+    <input
+      type="text"
+      #txtnombre
+      [value]="nombreDiagrama()"
+      (input)="nombreDiagrama.set(txtnombre.value)"
+      placeholder="Nombre del diagrama"
+      class="input"
+    >
+    <button (click)="onCreateDiagram()" class="btn btn-crear">CREAR</button>
   </div>
 
   <!-- Caja Unirse -->
-  <div class="caja-unirse">
-    <input type="text" placeholder="Código" class="input-codigo" [value]="url()" #txturl
-      (input)="url.set(txturl.value)">
-    <button (click)="onConnectDiagram()" class="btn-unirse">UNIRSE</button>
+  <div class="caja caja-unirse">
+    <input
+      type="text"
+      placeholder="Código del diagrama"
+      class="input"
+      [value]="url()"
+      #txturl
+      (input)="url.set(txturl.value)"
+    >
+    <button (click)="onConnectDiagram()" class="btn btn-unirse">UNIRSE</button>
   </div>
 </section>

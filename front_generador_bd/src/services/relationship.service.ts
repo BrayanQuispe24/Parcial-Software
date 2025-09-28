@@ -140,7 +140,7 @@ export class RelationshipService {
               '.marker-source': {
                 d: 'M 0 10 L 10 0 L 20 10 L 10 20 z',
                 fill: '#fff',
-                stroke: '#3b21d1ff'
+                stroke: '#000000ff'
               }
             }
           })
@@ -155,10 +155,10 @@ export class RelationshipService {
             source: { id: sourceId },
             target: { id: targetId },
             attrs: {
-              '.connection': { stroke: 'rgba(9, 160, 4, 1)', 'stroke-width': 2 },
+              '.connection': { stroke: 'rgba(5, 5, 5, 1)', 'stroke-width': 2 },
               '.marker-source': {
                 d: 'M 0 10 L 10 0 L 20 10 L 10 20 z',
-                fill: '#fff'
+                fill: '#0c0c0cff'
               }
             }
           })

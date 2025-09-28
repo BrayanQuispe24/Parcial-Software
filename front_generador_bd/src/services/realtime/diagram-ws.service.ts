@@ -10,13 +10,18 @@ export type LabelDTO = {
 };
 
 
-export type NodeData = {
+// en diagram-ws.service.ts o donde esté tu definición
+export interface NodeData {
   name: string;
-  position: XY;
-  size: Size;
-  attributes: string;   // texto multilinea (mismo que en .uml-class-attrs-text)
-  methods: string;      // texto multilinea (mismo que en .uml-class-methods-text)
-};
+  attributes: any[];
+  methods: any[];
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+
+  // ➕ agrega este campo opcional
+  dragging?: boolean;
+}
+
 // arriba, junto a los tipos
 type LinkKind = 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency';
 
@@ -27,18 +32,12 @@ export type LinkData = {
   targetPort?: string;
   labels?: LabelDTO[];
   vertices?: XY[];
-  kind?: LinkKind;             // 👈 NUEVO
+  kind?: LinkKind;
+
+  // 👇 Añadido para manejar estado efímero de movimiento
+  dragging?: boolean;
 };
 
-
-
-
-// export type LinkData = {
-//   sourceId: string;
-//   targetId: string;
-//   labels?: LabelDTO[];  // ahora no es string[], guardamos pos + texto
-//   vertices?: XY[];      // puntos intermedios de la línea
-// };
 
 export type DiagramOp =
   | { cid?: string; type: 'node.add'; id: string; data: NodeData }
@@ -202,11 +201,6 @@ export class DiagramWsService {
     }
   }
 
-  // ====== API rooms ======
-  // sendMessage(roomId: string, content: string) {
-  //   this.sendRaw({ cmd: 'message', roomId, content });
-  // }
-  // ====== API Rooms (chat) ======
   //para mensajes
   sendMessage(content: string) {
     this.sendRaw({ cmd: 'message', content });

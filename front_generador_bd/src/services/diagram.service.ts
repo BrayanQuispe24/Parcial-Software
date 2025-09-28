@@ -122,28 +122,22 @@ export class DiagramService {
       });
 
 
-      //👉 Doble clic en una relación para editar su etiqueta
+      //👉 Doble clic en una relación para editar su cardinalidad
       this.paper.on('link:pointerdblclick', (linkView: any, evt: MouseEvent, x: number, y: number) => {
         const model = linkView.model;
         const labelIndex = this.getClickedLabelIndex(linkView, evt);
 
-        const name = model.get('name');
-        if (name != "Relacion") return;
-        if (labelIndex === null) return; // no fue sobre una etiqueta
+        // ⚠️ sólo aplica en relaciones de tipo asociación
+        if (model.get('kind') !== 'association') return;
+        if (labelIndex === null) return;
 
-        // 🔹 Abrir editor solo si fue sobre un label
+        // 👉 abre cuadro para editar la cardinalidad (sea origen [0] o destino [1])
         const label = model.label(labelIndex);
-        const currentValue = label?.attrs?.text?.text || '';
-        this.startEditingLabel(model, labelIndex, currentValue, x, y);
+        const currentValue = label?.attrs?.text?.text || '1..1';
 
-        // Opcional: resaltar visualmente el label en edición
-        const labelNode = linkView.findLabelNode(labelIndex) as SVGElement;
-        if (labelNode) {
-          labelNode.setAttribute('stroke', '#2196f3');
-          labelNode.setAttribute('stroke-width', '1');
-        }
-      }
-      );
+        this.startEditingLabel(model, labelIndex, currentValue, x, y);
+      });
+
       //👉 Clic derecho en una relación para añadir una nueva etiqueta
       this.paper.on('link:contextmenu', (linkView: any, evt: MouseEvent, x: number, y: number) => {
         evt.preventDefault();
@@ -356,72 +350,85 @@ export class DiagramService {
 
       this.ws.enqueueOp(op);
     });
-    // Replica cambios de geometría (vértices) a todos
-    // this.graph.on('change:vertices', (link: any) => {
-    //   if (!this.ws) return;
-    //   const id = link.id as string;
-    //   if (this.suppress.has(id)) return;
-    //   this.queueLinkReplace(id, link);
-    // });
-    //aqui
-    // 🔹 Cambios en la conexión (cuando arrastras source o target)
-    // this.graph.on('change:source change:target', (link: any) => {
-    //   if (!this.ws) return;
-    //   const id = link.id as string;
-    //   if (this.suppress.has(id)) return;
-    //   this.queueLinkReplace(id, link);
-    // });
-    // drag en vivo (broadcast efímero)
-    // let lastSentPos: { x: number; y: number } | null = null;
-    // this.paper.on('element:pointermove', throttle((view: any) => {
-    //   if (!this.ws) return;
-
-    //   const pos = view.model.position();
-
-    //   if (!lastSentPos) {
-    //     lastSentPos = pos;
-    //     this.ws.sendDrag(view.model.id, pos);
-    //     return;
-    //   }
-
-    //   const dx = Math.abs(pos.x - lastSentPos.x);
-    //   const dy = Math.abs(pos.y - lastSentPos.y);
-
-    //   // 👉 solo si hay diferencia mayor a 5 px
-    //   if (dx > 5 || dy > 5) {
-    //     lastSentPos = pos;
-    //     this.ws.sendDrag(view.model.id, pos);
-    //   }
-    // }, 100)); // throttle sigue limitando la frecuencia
-
-    // drag end (persistir posición)
-    // angular/services/diagram.service.ts
+    // === Restaurar color y permitir edición al soltar ===
     this.paper.on('element:pointerup', (view: any) => {
-      if (!this.ws) return;
       const m = view.model;
       const pos = m.position();
-      this.ws.sendDragEnd(m.id, pos);
-      this.ws.enqueueOp({ type: 'node.update', id: m.id, patch: { position: pos } }); // ✅ Persistencia aquí
+      m.set('dragging', false);
+
+      // 🔵 Restaurar color local
+      m.attr('.uml-class-name-rect/stroke', '#2196f3');
+      m.attr('.uml-class-attrs-rect/stroke', '#2196f3');
+      m.attr('.uml-class-methods-rect/stroke', '#2196f3');
+
+      // 🌍 Notificar a los demás con estado + posición
+      if (this.ws) {
+        this.ws.sendDragEnd(m.id, pos);
+        this.ws.enqueueOp({
+          type: 'node.update',
+          id: m.id,
+          patch: { dragging: false, position: pos }
+        });
+      }
+    });
+    this.paper.on('element:pointerdown', (view: any) => {
+      const model = view.model;
+
+      // Marca el estado de dragging
+      model.set('dragging', true);
+
+      // Cambia color mientras se arrastra
+      model.attr('.uml-class-name-rect/stroke', '#f44336');   // rojo
+      model.attr('.uml-class-attrs-rect/stroke', '#f44336');
+      model.attr('.uml-class-methods-rect/stroke', '#f44336');
+
+      // 🌍 Notificar a los demás
+      if (this.ws) {
+        this.ws.enqueueOp({ type: 'node.update', id: model.id, patch: { dragging: true } });
+      }
     });
 
-    // 👉 añade aquí el de las relaciones
+    // al soltar una relación
+    // === Al soltar una relación ===
     this.paper.on('link:pointerup', (view: any) => {
-      if (!this.ws) return;
       const link = view.model;
       const id = link.id as string;
-      if (this.suppress.has(id)) return;
+      link.set('dragging', false);
 
-      const data = this.serializeLink(link);
-      this.ws.enqueueOp({ type: 'link.remove', id });
-      this.ws.enqueueOp({ type: 'link.add', id, data });
+      // 🔵 Restaurar color local
+      link.attr('.connection/stroke', '#333');
+
+      // 🌍 Sincronizar con otros
+      if (this.ws) {
+        const data = { ...this.serializeLink(link), dragging: false };
+        this.ws.enqueueOp({ type: 'link.remove', id });
+        this.ws.enqueueOp({ type: 'link.add', id, data } as any);
+      }
+
+      // ⚡ Mostrar menú de cardinalidad si es asociación
+      // ⚡ Mostrar menú de cardinalidad si es asociación
+      if (link.get('kind') === 'association') {
+        const sourceId = link.get('source')?.id;
+        const targetId = link.get('target')?.id;
+      }
     });
-    // this.paper.on('element:pointerup', (view: any) => {
-    //   if (!this.ws) return;
-    //   const m = view.model;
-    //   const pos = m.position();
-    //   this.ws.sendDragEnd(m.id, pos);
-    //   this.ws.enqueueOp({ type: 'node.update', id: m.id, patch: { position: pos } });
-    // });
+
+
+
+    this.paper.on('link:pointerdown', (view: any) => {
+      const link = view.model;
+      link.set('dragging', true);
+
+      // 🔴 conexión roja local
+      link.attr('.connection/stroke', '#f44336');
+
+      // 🌍 notificar a otros (reemplazo con dragging:true)
+      if (this.ws) {
+        const data = { ...this.serializeLink(link), dragging: true };
+        this.ws.enqueueOp({ type: 'link.remove', id: link.id });
+        this.ws.enqueueOp({ type: 'link.add', id: link.id, data } as any);
+      }
+    });
 
     // edición de textos (desde MethodsClassesService, ver parche abajo)
     this.graph.on('local:edit', ({ model }: { model: any }) => {
@@ -483,30 +490,6 @@ export class DiagramService {
     };
   }
 
-
-
-  // private serializeLink(link: any): LinkData {
-  //   const sourceId = link.get('source')?.id;
-  //   const targetId = link.get('target')?.id;
-
-  //   const labels = (link.labels?.() || []).map((l: any) => ({
-  //     position: l?.position, // conserva distance/ratio/offset
-  //     attrs: { text: { text: l?.attrs?.text?.text || '' } }
-  //   }));
-
-  //   const vertices = link.get('vertices') || [];
-
-  //   return { sourceId, targetId, labels, vertices };
-  // }
-
-
-  // private serializeLink(link: any) {
-  //   const sourceId = link.get('source')?.id;
-  //   const targetId = link.get('target')?.id;
-  //   const labels = (link.labels?.() || []).map((l: any) => l?.attrs?.text?.text || '');
-  //   return { sourceId, targetId, labels };
-  // }
-
   // +++ snapshot completo +++
   applySnapshot(snap: { nodes: Record<string, any>; links: Record<string, any> }) {
     this.suppress.clear();
@@ -529,14 +512,6 @@ export class DiagramService {
     }
   }
 
-  // +++ drags remotos (efímeros) +++
-  // applyRemoteDrag(id: string, pos: { x: number; y: number }) {
-  //   const cell = this.graph.getCell(id);
-  //   if (cell?.isElement?.()) cell.position(pos.x, pos.y);
-  //     if (cell?.isElement?.()) { con esto solo se vera cuando se deje de mover
-  //   cell.transition('position', pos, { duration: 50, timingFunction: 'ease-in-out' });
-  // }
-  // }
 
   private dragTargets = new Map<string, { x: number; y: number }>();
   private animating = false;
@@ -545,34 +520,6 @@ export class DiagramService {
     // this.dragTargets.set(id, pos);
     // if (!this.animating) this.startAnimationLoop();
   }
-  // private startAnimationLoop() {
-  //   this.animating = true;
-
-  //   const step = () => {
-  //     this.dragTargets.forEach((target, id) => {
-  //       const cell = this.graph.getCell(id);
-  //       if (!cell?.isElement?.()) return;
-
-  //       const current = cell.position();
-  //       const dx = target.x - current.x;
-  //       const dy = target.y - current.y;
-
-  //       // interpolación (factor 0.2 = suavizado)
-  //       const nextX = current.x + dx * 0.2;
-  //       const nextY = current.y + dy * 0.2;
-
-  //       cell.position(nextX, nextY);
-  //     });
-
-  //     if (this.dragTargets.size > 0) {
-  //       requestAnimationFrame(step);
-  //     } else {
-  //       this.animating = false;
-  //     }
-  //   };
-
-  //   requestAnimationFrame(step);
-  // }
 
   applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
     const cell = this.graph.getCell(id);
@@ -582,10 +529,7 @@ export class DiagramService {
   }
 
 
-  // applyRemoteDragEnd(id: string, pos: { x: number; y: number }) {
-  //   const cell = this.graph.getCell(id);
-  //   if (cell?.isElement?.()) cell.position(pos.x, pos.y);
-  // }
+
 
   // +++ helpers de alta/actualización/baja remota +++
   private addRemoteNode(id: string, data: any) {
@@ -679,8 +623,26 @@ export class DiagramService {
       }
     }
 
+    // 🔹 Estado de dragging remoto
+    if (typeof patch.dragging === 'boolean') {
+      el.set('dragging', patch.dragging);
+
+      if (patch.dragging) {
+        // 🔴 borde rojo cuando está en movimiento
+        el.attr('.uml-class-name-rect/stroke', '#f44336');
+        el.attr('.uml-class-attrs-rect/stroke', '#f44336');
+        el.attr('.uml-class-methods-rect/stroke', '#f44336');
+      } else {
+        // 🔵 restaurar borde azul al soltar
+        el.attr('.uml-class-name-rect/stroke', '#2196f3');
+        el.attr('.uml-class-attrs-rect/stroke', '#2196f3');
+        el.attr('.uml-class-methods-rect/stroke', '#2196f3');
+      }
+    }
+
     setTimeout(() => this.suppress.delete(id), 0);
   }
+
 
 
   private attrsForKind(kind: 'association' | 'generalization' | 'aggregation' | 'composition' | 'dependency') {
@@ -739,68 +701,18 @@ export class DiagramService {
     });
 
     linkEl.set('kind', kind);
+
+    // 🔹 Si el link viene con dragging activo → pintarlo de rojo
+    if (data.dragging) {
+      linkEl.set('dragging', true);
+      linkEl.attr('.connection/stroke', '#f44336'); // rojo
+    }
+
     this.graph.addCell(linkEl);
 
     setTimeout(() => this.suppress.delete(id), 0);
   }
 
-
-
-  // private addRemoteLink(id: string, data: LinkData) {
-  //   this.suppress.add(id);
-  //   const kind = (data.kind as any) || 'association';
-  //   const link = new this.joint.dia.Link({
-  //     id,
-  //     name: 'Relacion',
-  //     kind,                               // 👈 guarda el tipo en el modelo
-  //     source: { id: data.sourceId, port: data.sourcePort },
-  //     target: { id: data.targetId, port: data.targetPort },
-  //     attrs: this.attrsForKind(kind),     // 👈 aplica estilo correcto
-  //     labels: data.labels || [],
-  //     vertices: data.vertices || []
-  //   });
-  //   this.graph.addCell(link);
-  //   setTimeout(() => this.suppress.delete(id), 0);
-  // }
-
-
-  // private addRemoteLink(id: string, data: LinkData) {
-  //   this.suppress.add(id);
-  //   const link = new this.joint.dia.Link({
-  //     id,
-  //     name: 'Relacion',
-  //     source: { id: data.sourceId },
-  //     target: { id: data.targetId },
-  //     attrs: {
-  //       '.connection': { stroke: '#333333', 'stroke-width': 2 },
-  //       '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
-  //     },
-  //     labels: data.labels || [],
-  //     vertices: data.vertices || []
-  //   });
-  //   this.graph.addCell(link);
-  //   setTimeout(() => this.suppress.delete(id), 0);
-  // }
-
-  // private addRemoteLink(id: string, data: any) {
-  //   this.suppress.add(id);
-  //   const link = new this.joint.dia.Link({
-  //     id,
-  //     name: 'Relacion',
-  //     source: { id: data.sourceId },
-  //     target: { id: data.targetId },
-  //     attrs: {
-  //       '.connection': { stroke: '#333333', 'stroke-width': 2 },
-  //       '.marker-target': { fill: '#333333', d: 'M 10 0 L 0 5 L 10 10 z' }
-  //     },
-  //     labels: [
-  //       { position: { distance: 20, offset: -10 }, attrs: { text: { text: data.labels?.[0] || '' } } },
-  //       { position: { distance: -20, offset: -10 }, attrs: { text: { text: data.labels?.[1] || '' } } }
-  //     ]
-  //   });
-  //   this.graph.addCell(link);
-  //   setTimeout(() => this.suppress.delete(id), 0);
-  // }
 
   private removeRemoteCell(id: string) {
     const cell = this.graph.getCell(id);
@@ -851,18 +763,13 @@ export class DiagramService {
       const methsText: string = cell.attr('.uml-class-methods-text/text') || '';
 
       const attributes = attrsText.split('\n').filter(line => line.trim() !== '').map(line => {
-        // const visibility = line.trim().startsWith('+') ? 'public'
-        //   : line.trim().startsWith('-') ? 'private'
-        //     : 'unspecified';
         const cleanLine = line.replace(/^[-+]/, '').trim();
         const [name, type] = cleanLine.split(':').map(p => p.trim());
         return { name, type };
       });
 
       const methods = methsText.split('\n').filter(line => line.trim() !== '').map(line => {
-        // const visibility = line.trim().startsWith('+') ? 'public'
-        //   : line.trim().startsWith('-') ? 'private'
-        //     : 'unspecified';
+
         const cleanLine = line.replace(/^[-+]/, '').trim();
         const nameMatch = cleanLine.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(\(.*\))?\s*(:\s*.+)?$/);
         const name = nameMatch?.[1] || cleanLine;

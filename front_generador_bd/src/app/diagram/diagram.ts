@@ -8,7 +8,6 @@ import { RelationshipService } from '../../services/relationship.service';
 import { UmlClass } from '../../models/uml-class.model';
 import { MethodsClassesService } from '../../services/method-classes/methods-classes.service';
 import { DiagramWsService } from '../../services/realtime/diagram-ws.service';
-import { environment } from '../../environments/environment';
 import { MethodDiagramService } from '../../services/method-diagram/method-diagram.service';
 
 @Component({
@@ -40,17 +39,6 @@ export class Diagram implements AfterViewInit {
     this.ngZone.run(async () => {
       try {
         await this.diagramService.initialize(this.paperContainer.nativeElement);
-
-        // 👉 Cuando abras/crees el diagrama deberías obtener esto del backend
-        // Ejemplo quemado:
-        // const diagramId = 'bc8bc66c-f318-47a2-afc6-8c74e87869c1';
-        // const url = `${environment.wsBaseUrl}/ws/diagram/${diagramId}/`;
-
-        // this.ws.connect(url);   // 👈 ahora sí apunta al consumer correcto
-        // this.diagramService.attachWs(this.ws);
-
-        // Suscripciones a eventos
-        // this.ws.snapshot$.subscribe(({ snapshot }) => this.diagramService.applySnapshot(snapshot));
         this.connectIfUrlStored();
 
         // Eventos del panel lateral
@@ -146,11 +134,6 @@ export class Diagram implements AfterViewInit {
       console.warn("⚠️ No se encontró ningún 'url' en localStorage");
       return;
     }
-
-    // // 👇 fuerza a usar WSS si la página es HTTPS
-    // if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
-    //   url = url.replace('ws://', 'wss://');
-    // }
 
     this.methodDiagramService.openDiagram(url);
     console.log('🔗 Conectando con:', url);

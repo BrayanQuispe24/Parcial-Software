@@ -11,6 +11,7 @@ import java.util.*;
 public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
 
   // ===== Campos simples =====
+  {{^isChild}}
   {{#fields}}
   {{#isId}}
   @Id
@@ -19,6 +20,7 @@ public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
   @Column(name = "{{name}}"{{^nullable}}, nullable = false{{/nullable}}{{#unique}}, unique = true{{/unique}})
   private {{type}} {{name}};
   {{/fields}}
+  {{/isChild}}
 
   // ===== Relaciones =====
   {{#manyToOne}}
@@ -59,10 +61,12 @@ public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
   {{/manyToManyInverse}}
 
   // ===== Getters & Setters =====
+  {{^isChild}}
   {{#fields}}
   public {{type}} get{{Name}}() { return {{name}}; }
   public void set{{Name}}({{type}} {{name}}) { this.{{name}} = {{name}}; }
   {{/fields}}
+  {{/isChild}}
 
   {{#manyToOne}}
   public {{target}} get{{targetVarCap}}() { return {{targetVar}}; }

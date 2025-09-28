@@ -106,8 +106,10 @@ export class MethodsClassesService {
     if (!hostEl) { console.warn('[showCardinalityMenu] Paper element no disponible'); return; }
 
     const menu = document.createElement('select');
-    ['1..1', '1..*', '0..1', '0..*', 'n:n'].forEach(v => {
-      const o = document.createElement('option'); o.value = o.textContent = v; menu.appendChild(o);
+    ['0..1','1..1', '1..*', '1..0', '0..*', 'n:n'].forEach(v => {
+      const o = document.createElement('option');
+      o.value = o.textContent = v;
+      menu.appendChild(o);
     });
 
     const paperRect = hostEl.getBoundingClientRect();
@@ -118,35 +120,47 @@ export class MethodsClassesService {
     menu.style.zIndex = '1000';
     document.body.appendChild(menu);
 
-    // A veces el focus abre el dropdown; no es problema.
     setTimeout(() => menu.focus(), 0);
 
     let closed = false;
     const cleanup = () => {
       if (closed) return;
       closed = true;
-      if (menu.isConnected) menu.remove(); // evita NotFoundError
+      if (menu.isConnected) menu.remove();
       document.removeEventListener('keydown', onKeyDown);
     };
-
-    // this.graph?.trigger('local:link-changed', { link });
 
     const applyValue = () => {
       const value = menu.value;
 
       if (value === 'n:n') {
+        console.log('🟡 n:n seleccionado → creando tabla intermedia...');
+
+        // 1. eliminar relación original
         link.remove();
-        this.createJoinTableForManyToMany(sourceId, targetId);
-        return; // 👈 no dispares 'local:link-changed' ni sigas //esto
-      } else {
-        // Asegura que existe el label 1
-        const labels = link.labels?.() ?? [];
-        if (labels.length < 2) {
-          // si tu buildRelationship siempre pone 2 labels, esto no debería pasar,
-          // pero lo reforzamos:
-          link.label(0, labels[0] ?? { position: 20, attrs: { text: { text: '' } } });
-          link.label(1, labels[1] ?? { position: -20, attrs: { text: { text: '' } } });
+        this.graph?.trigger('local:link-changed', { link });
+
+        // 2. intentar crear tabla intermedia
+        const joinClass = this.createJoinTableForManyToMany(sourceId, targetId);
+
+        if (!joinClass) {
+          console.error('❌ No se pudo crear tabla intermedia');
+        } else {
+          console.log('✅ Tabla intermedia creada:', joinClass.id);
+
+          // 3. notificar sus nuevas relaciones
+          const newLinks = this.graph.getConnectedLinks(joinClass);
+          newLinks.forEach((l: any) => {
+            console.log('🔗 Nueva relación creada:', l.id);
+            this.graph?.trigger('local:link-changed', { link: l });
+          });
         }
+
+        return;
+      }
+      else {
+        // 👉 cualquier otra cardinalidad
+        this.ensureTwoLabels(link);
         link.label(1, { attrs: { text: { text: value } } });
       }
     };
@@ -155,26 +169,21 @@ export class MethodsClassesService {
       if (e.key === 'Escape') cleanup();
     };
 
-    // 1) Si cambia, aplicamos y limpiamos (una sola vez)
+    // aplicar cuando cambia selección
     menu.addEventListener('change', () => {
       const wasManyToMany = menu.value === 'n:n';
       applyValue();
 
       if (!wasManyToMany) {
-        // para cambios normales de cardinalidad
         this.graph?.trigger('local:link-changed', { link });
       }
       cleanup();
     }, { once: true });
 
-
-
-    // 2) Si se pierde foco sin cambiar, cerramos.
-    //    Lo diferimos con setTimeout para dar oportunidad a que 'change' dispare primero.
     menu.addEventListener('blur', () => { setTimeout(() => cleanup(), 0); }, { once: true });
-
     document.addEventListener('keydown', onKeyDown);
   }
+
 
 
   /**************************************************************************************************
@@ -182,6 +191,10 @@ export class MethodsClassesService {
   ***************************************************************************************************/
 
   startEditing(model: any, field: 'name' | 'attributes' | 'methods', x: number, y: number) {
+    if (model.get('dragging')) {
+      console.log('⛔ Edición bloqueada: el elemento está en movimiento');
+      return;
+    }
     // Mapa de selectores correctos en tu shape
     const SELECTOR_MAP: Record<typeof field, string> = {
       name: '.uml-class-name-text',
@@ -292,11 +305,15 @@ export class MethodsClassesService {
     const targetName = targetEl.attr('.uml-class-name-text/text') || 'ClaseB';
     const joinName = `${sourceName}_${targetName}`;
 
-    // 🛑 Si ya existe, cancelar
-    if (this.graph.getElements().some((el: any) => el.get('name') === joinName)) {
-      console.warn('⚠️ Ya existe la tabla intermedia:', joinName);
+    // 🛑 Si ya existe, avisar y salir
+    const existing = this.graph.getElements().find((el: any) => el.get('name') === joinName);
+    if (existing) {
+      console.warn(`⚠️ Ya existe la tabla intermedia: ${joinName}`);
+      alert(`⚠️ Ya existe una tabla intermedia con el nombre "${joinName}".
+Si necesitas otra, cámbiale el nombre manualmente.`);
       return;
     }
+
 
     // 🧠 Posicionar entre ambas clases
     const pos1 = sourceEl.position();
@@ -336,69 +353,63 @@ export class MethodsClassesService {
 
     return joinClass; // útil si luego quieres posicionar o usar el id
   }
-  // === Ajusta alto de compartimentos y del elemento según el texto ===
-  // === Ajusta alto de compartimentos y del elemento según el texto ===
-  // === Ajusta alto de compartimentos y del elemento según el texto ===
-  // === Ajusta alto de compartimentos y del elemento según el texto ===
+  private autoResizeUmlClass = (model: any) => {
+    if (!model || !model.isElement()) return;
 
-  // === Ajusta alto de compartimentos con tamaño fijo por línea ===
-private autoResizeUmlClass = (model: any) => {
-  if (!model || !model.isElement()) return;
+    // === Constantes ===
+    const NAME_H = 30;   // altura fija del título
+    const LINE_H = 18;   // altura por línea
+    const FIXED_W = 180; // ancho fijo
 
-  // === Constantes ===
-  const NAME_H = 30;   // altura fija del título
-  const LINE_H = 18;   // altura por línea
-  const FIXED_W = 180; // ancho fijo
+    // Ejecutar después de renderizado (evita BBox vacío/chueco)
+    requestAnimationFrame(() => {
+      // --- Texto actual ---
+      const attrsText = (model.attr('.uml-class-attrs-text/text') || '') as string;
+      const methsText = (model.attr('.uml-class-methods-text/text') || '') as string;
 
-  // Ejecutar después de renderizado (evita BBox vacío/chueco)
-  requestAnimationFrame(() => {
-    // --- Texto actual ---
-    const attrsText = (model.attr('.uml-class-attrs-text/text') || '') as string;
-    const methsText = (model.attr('.uml-class-methods-text/text') || '') as string;
+      // --- Contar líneas (no vacías) ---
+      const attrsLines = attrsText.split('\n').filter(l => l.trim() !== '').length;
+      const methsLines = methsText.split('\n').filter(l => l.trim() !== '').length;
 
-    // --- Contar líneas (no vacías) ---
-    const attrsLines = attrsText.split('\n').filter(l => l.trim() !== '').length;
-    const methsLines = methsText.split('\n').filter(l => l.trim() !== '').length;
+      // --- Alturas dinámicas ---
+      const ATTRS_H = Math.max(LINE_H, attrsLines * LINE_H);
+      const METHS_H = Math.max(LINE_H, methsLines * LINE_H);
 
-    // --- Alturas dinámicas ---
-    const ATTRS_H = Math.max(LINE_H, attrsLines * LINE_H);
-    const METHS_H = Math.max(LINE_H, methsLines * LINE_H);
+      // --- Rectángulos ---
+      model.attr('.uml-class-name-rect/height', NAME_H);
 
-    // --- Rectángulos ---
-    model.attr('.uml-class-name-rect/height', NAME_H);
+      model.attr('.uml-class-attrs-rect/height', ATTRS_H);
+      model.attr('.uml-class-attrs-rect/refY', NAME_H);
 
-    model.attr('.uml-class-attrs-rect/height', ATTRS_H);
-    model.attr('.uml-class-attrs-rect/refY', NAME_H);
+      model.attr('.uml-class-methods-rect/height', METHS_H);
+      model.attr('.uml-class-methods-rect/refY', NAME_H + ATTRS_H);
 
-    model.attr('.uml-class-methods-rect/height', METHS_H);
-    model.attr('.uml-class-methods-rect/refY', NAME_H + ATTRS_H);
+      // --- Texto nombre (centrado en bloque título) ---
+      model.attr('.uml-class-name-text/refX', FIXED_W / 2);
+      model.attr('.uml-class-name-text/refY', NAME_H / 2);
+      model.attr('.uml-class-name-text/textAnchor', 'middle');
+      model.attr('.uml-class-name-text/yAlignment', 'middle');
 
-    // --- Texto nombre (centrado en bloque título) ---
-    model.attr('.uml-class-name-text/refX', FIXED_W / 2);
-    model.attr('.uml-class-name-text/refY', NAME_H / 2);
-    model.attr('.uml-class-name-text/textAnchor', 'middle');
-    model.attr('.uml-class-name-text/yAlignment', 'middle');
+      // --- Texto atributos (arriba del rectángulo) ---
+      model.attr('.uml-class-attrs-text/refX', 8);
+      model.attr('.uml-class-attrs-text/refY', NAME_H + 5);
+      model.attr('.uml-class-attrs-text/textAnchor', 'start');
+      model.attr('.uml-class-attrs-text/yAlignment', 'top');
 
-    // --- Texto atributos (arriba del rectángulo) ---
-    model.attr('.uml-class-attrs-text/refX', 8);
-    model.attr('.uml-class-attrs-text/refY', NAME_H + 5);
-    model.attr('.uml-class-attrs-text/textAnchor', 'start');
-    model.attr('.uml-class-attrs-text/yAlignment', 'top');
+      // --- Texto métodos (arriba del rectángulo) ---
+      model.attr('.uml-class-methods-text/refX', 8);
+      model.attr('.uml-class-methods-text/refY', NAME_H + ATTRS_H + 14);
+      model.attr('.uml-class-methods-text/textAnchor', 'start');
+      model.attr('.uml-class-methods-text/yAlignment', 'top');
 
-    // --- Texto métodos (arriba del rectángulo) ---
-    model.attr('.uml-class-methods-text/refX', 8);
-    model.attr('.uml-class-methods-text/refY', NAME_H + ATTRS_H + 14);
-    model.attr('.uml-class-methods-text/textAnchor', 'start');
-    model.attr('.uml-class-methods-text/yAlignment', 'top');
+      // --- Redimensionar clase entera ---
+      const totalH = NAME_H + ATTRS_H + METHS_H;
+      model.resize(FIXED_W, totalH);
 
-    // --- Redimensionar clase entera ---
-    const totalH = NAME_H + ATTRS_H + METHS_H;
-    model.resize(FIXED_W, totalH);
-
-    // --- Actualizar puertos según tamaño final ---
-    this.updatePorts(model);
-  });
-};
+      // --- Actualizar puertos según tamaño final ---
+      this.updatePorts(model);
+    });
+  };
 
 
 

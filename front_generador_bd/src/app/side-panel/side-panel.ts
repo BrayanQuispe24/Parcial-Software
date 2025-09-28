@@ -8,6 +8,7 @@ import { DiagramWsService } from '../../services/realtime/diagram-ws.service';
 import { DiagramService } from '../../services/diagram.service';
 import { GeneratorBackendService } from '../../services/exports/generatorBackend.service';
 import { GeneratorDataService } from '../../services/exports/generatorData.service';
+import { ExportsService } from '../../services/exports/exports.service';
 
 @Component({
   selector: 'app-side-panel',
@@ -18,7 +19,7 @@ import { GeneratorDataService } from '../../services/exports/generatorData.servi
 export class SidePanel {
   private ws = inject(DiagramWsService);
   private diagramService = inject(DiagramService);
-  private methodServiceDiagram = inject(MethodDiagramService);
+  private exportService = inject(ExportsService);
   private generadorBackend = inject(GeneratorBackendService);
   private diagramWsService = inject(DiagramWsService);
   private fixtureService = inject(GeneratorDataService);
@@ -43,9 +44,7 @@ export class SidePanel {
     this.diagramWsService.disconnect();
     localStorage.removeItem('url');
     console.log('url removido:');
-    // 🔹 Limpiar el canvas
-    //this.diagramService['graph']?.clear();
-    window.location.href='/home';
+    window.location.href = '/home';
 
   }
 
@@ -102,6 +101,23 @@ export class SidePanel {
       const sqlContent = res.sql.join('\n'); // junta los INSERT en un string
       this.fixtureService.downloadFile(sqlContent, 'Datos.sql', 'text/sql');
     });
+  }
+
+  onExportSQL() {
+    const diagramStr = this.diagramService.exportFullDiagramAsJson();
+    const diagram = JSON.parse(diagramStr);
+    const sqlScript = this.exportService.umlToSQL(diagram.classes, diagram.relationships, "mi_proyecto_db");
+
+    const blob = new Blob([sqlScript], { type: 'text/sql' });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo.sql';
+    a.click();
+
+    window.URL.revokeObjectURL(url);
+
   }
 
 

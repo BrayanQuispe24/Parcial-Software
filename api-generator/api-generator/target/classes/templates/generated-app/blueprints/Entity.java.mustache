@@ -5,9 +5,13 @@ import java.util.*;
 
 @Entity
 @Table(name = "{{table}}")
-public class {{name}} {
+{{#isParent}}
+@Inheritance(strategy = InheritanceType.JOINED)
+{{/isParent}}
+public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
 
   // ===== Campos simples =====
+  {{^isChild}}
   {{#fields}}
   {{#isId}}
   @Id
@@ -16,6 +20,7 @@ public class {{name}} {
   @Column(name = "{{name}}"{{^nullable}}, nullable = false{{/nullable}}{{#unique}}, unique = true{{/unique}})
   private {{type}} {{name}};
   {{/fields}}
+  {{/isChild}}
 
   // ===== Relaciones =====
   {{#manyToOne}}
@@ -55,12 +60,13 @@ public class {{name}} {
   private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/manyToManyInverse}}
 
-
   // ===== Getters & Setters =====
+  {{^isChild}}
   {{#fields}}
   public {{type}} get{{Name}}() { return {{name}}; }
   public void set{{Name}}({{type}} {{name}}) { this.{{name}} = {{name}}; }
   {{/fields}}
+  {{/isChild}}
 
   {{#manyToOne}}
   public {{target}} get{{targetVarCap}}() { return {{targetVar}}; }

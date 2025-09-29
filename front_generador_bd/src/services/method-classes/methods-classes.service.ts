@@ -106,7 +106,7 @@ export class MethodsClassesService {
     if (!hostEl) { console.warn('[showCardinalityMenu] Paper element no disponible'); return; }
 
     const menu = document.createElement('select');
-    ['0..1','1..1', '1..*', '1..0', '0..*', 'n:n'].forEach(v => {
+    ['0..1', '1..1', '1..*', '1..0', '0..*', 'n:n'].forEach(v => {
       const o = document.createElement('option');
       o.value = o.textContent = v;
       menu.appendChild(o);
@@ -136,11 +136,10 @@ export class MethodsClassesService {
       if (value === 'n:n') {
         console.log('🟡 n:n seleccionado → creando tabla intermedia...');
 
-        // 1. eliminar relación original
+        // 1. eliminar relación original → esto ya dispara graph.on('remove')
         link.remove();
-        this.graph?.trigger('local:link-changed', { link });
 
-        // 2. intentar crear tabla intermedia
+        // 2. crear tabla intermedia
         const joinClass = this.createJoinTableForManyToMany(sourceId, targetId);
 
         if (!joinClass) {
@@ -148,10 +147,9 @@ export class MethodsClassesService {
         } else {
           console.log('✅ Tabla intermedia creada:', joinClass.id);
 
-          // 3. notificar sus nuevas relaciones
+          // 3. notificar SOLO las nuevas relaciones
           const newLinks = this.graph.getConnectedLinks(joinClass);
           newLinks.forEach((l: any) => {
-            console.log('🔗 Nueva relación creada:', l.id);
             this.graph?.trigger('local:link-changed', { link: l });
           });
         }
@@ -162,6 +160,7 @@ export class MethodsClassesService {
         // 👉 cualquier otra cardinalidad
         this.ensureTwoLabels(link);
         link.label(1, { attrs: { text: { text: value } } });
+        this.graph?.trigger('local:link-changed', { link });
       }
     };
 
@@ -175,7 +174,7 @@ export class MethodsClassesService {
       applyValue();
 
       if (!wasManyToMany) {
-        this.graph?.trigger('local:link-changed', { link });
+        // ya se notificó con trigger()
       }
       cleanup();
     }, { once: true });
@@ -183,6 +182,7 @@ export class MethodsClassesService {
     menu.addEventListener('blur', () => { setTimeout(() => cleanup(), 0); }, { once: true });
     document.addEventListener('keydown', onKeyDown);
   }
+
 
 
 

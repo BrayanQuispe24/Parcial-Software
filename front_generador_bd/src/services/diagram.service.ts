@@ -405,8 +405,6 @@ export class DiagramService {
         this.ws.enqueueOp({ type: 'link.add', id, data } as any);
       }
 
-      // ⚡ Mostrar menú de cardinalidad si es asociación
-      // ⚡ Mostrar menú de cardinalidad si es asociación
       if (link.get('kind') === 'association') {
         const sourceId = link.get('source')?.id;
         const targetId = link.get('target')?.id;

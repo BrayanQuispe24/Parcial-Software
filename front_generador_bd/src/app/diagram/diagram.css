@@ -82,3 +82,41 @@ svg.joint-paper svg {
   stroke: #ff5722 !important;
   stroke-width: 3px !important;
 }
+
+/* Contenedor de los controles de zoom */
+.zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+/* Botones individuales */
+.zoom-controls button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #333;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Hover */
+.zoom-controls button:hover {
+  background-color: #f0f0f0;
+  transform: scale(1.05);
+}
+
+/* Active (click) */
+.zoom-controls button:active {
+  background-color: #e0e0e0;
+  transform: scale(0.95);
+}

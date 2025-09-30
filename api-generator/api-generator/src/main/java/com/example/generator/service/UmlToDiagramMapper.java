@@ -44,8 +44,8 @@ public class UmlToDiagramMapper {
       Multiplicity mTgt = parseMultiplicity(r.getCardinality() != null ? r.getCardinality().getTarget() : null);
       // 🔹 Generalización (herencia)
       if ("generalization".equalsIgnoreCase(r.getType())) {
-        EntityModel parent = entities.get(r.getSourceId()); // padre = source
-        EntityModel child  = entities.get(r.getTargetId()); // hijo = target
+        EntityModel parent = entities.get(r.getTargetId()); // padre = target
+        EntityModel child  = entities.get(r.getSourceId()); // hijo = source
 
         if (parent != null && child != null) {
           // 🚀 importante: asegurarse que no se autorefiera
@@ -82,15 +82,20 @@ public class UmlToDiagramMapper {
       // Si no hay cardinalidades claras, aún podemos usar el tipo
       String relType = r.getType() != null ? r.getType().toLowerCase(Locale.ROOT) : "association";
 
-      // composition / aggregation → 1..N ; composition con cascade+orphan
       if ("composition".equals(relType) || "aggregation".equals(relType)) {
-        EntityModel child  = entities.get(r.getSourceId());
-        EntityModel parent = entities.get(r.getTargetId());
-        addManyToOne(child, tgtName, toFk(tgtName));
-        RelationModel onm = addOneToMany(parent, child.getName(), lower(tgtName));
-        if ("composition".equals(relType)) { onm.setCascadeAll(true); onm.setOrphanRemoval(true); }
+        EntityModel parent = entities.get(r.getSourceId()); // el que tiene el rombo (source)
+        EntityModel child  = entities.get(r.getTargetId()); // el otro (target)
+
+        addManyToOne(child, parent.getName(), toFk(parent.getName())); // cada hijo apunta a su padre
+        RelationModel onm = addOneToMany(parent, child.getName(), lower(parent.getName()));
+
+        if ("composition".equals(relType)) {
+          onm.setCascadeAll(true);
+          onm.setOrphanRemoval(true);
+        }
         continue;
       }
+
 
       // dependency → N..1 "suave" (sin cascada / orphan)
       if ("dependency".equals(relType)) {

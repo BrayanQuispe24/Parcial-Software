@@ -139,5 +139,11 @@ export class Diagram implements AfterViewInit {
     console.log('🔗 Conectando con:', url);
   }
 
+  //movimientos y zoom
+  zoomIn() { this.diagramService.zoomIn(); }
+  zoomOut() { this.diagramService.zoomOut(); }
+  resetZoom() { this.diagramService.resetZoom(); }
+
+
 
 }

@@ -2,6 +2,9 @@ package {{packageBase}}.domain;
 
 import jakarta.persistence.*;
 import java.util.*;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "{{table}}")
@@ -26,22 +29,26 @@ public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
   {{#manyToOne}}
   @ManyToOne
   @JoinColumn(name = "{{joinColumn}}")
+  @JsonBackReference
   private {{target}} {{targetVar}};
   {{/manyToOne}}
 
   {{#oneToMany}}
   @OneToMany(mappedBy = "{{mappedBy}}")
+  @JsonManagedReference
   private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/oneToMany}}
 
   {{#oneToOneOwning}}
   @OneToOne
   @JoinColumn(name = "{{joinColumn}}")
+  @JsonIgnore
   private {{target}} {{targetVar}};
   {{/oneToOneOwning}}
 
   {{#oneToOneInverse}}
   @OneToOne(mappedBy = "{{mappedBy}}")
+  @JsonIgnore
   private {{target}} {{targetVar}};
   {{/oneToOneInverse}}
 
@@ -52,11 +59,13 @@ public class {{name}}{{#parentName}} extends {{parentName}}{{/parentName}} {
       joinColumns = @JoinColumn(name = "{{thisJoin}}"),
       inverseJoinColumns = @JoinColumn(name = "{{otherJoin}}")
   )
+  @JsonIgnore
   private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/manyToManyOwning}}
 
   {{#manyToManyInverse}}
   @ManyToMany(mappedBy = "{{mappedBy}}")
+  @JsonIgnore
   private List<{{target}}> {{targetVar}}s = new ArrayList<>();
   {{/manyToManyInverse}}
 

@@ -54,6 +54,35 @@ export class DiagramService {
       });
       this.methodClassesService.paper = this.paper;
 
+      // --- PAN (Ctrl + arrastrar en el lienzo) ---
+      let panning = false;
+      let lastX = 0, lastY = 0;
+
+      this.paper.on('blank:pointerdown', (evt: MouseEvent) => {
+        if (evt.ctrlKey) {
+          panning = true;
+          lastX = evt.clientX;
+          lastY = evt.clientY;
+        }
+      });
+
+      this.paper.on('cell:pointerup blank:pointerup', () => {
+        panning = false;
+      });
+
+      this.paper.on('blank:pointermove', (evt: MouseEvent) => {
+        if (panning) {
+          const dx = evt.clientX - lastX;
+          const dy = evt.clientY - lastY;
+          lastX = evt.clientX;
+          lastY = evt.clientY;
+
+          const { tx, ty } = this.paper.translate();
+          this.paper.translate(tx + dx, ty + dy);
+        }
+      });
+
+
       /**************************************************************************************************
       *                   EVENTOS INTERACTIVOS EN EL PAPER
       ***************************************************************************************************/
@@ -815,6 +844,24 @@ export class DiagramService {
 
 
     return JSON.stringify({ classes, relationships }, null, 2);
+  }
+
+  //zoom y movimientos
+
+  // --- ZOOM ---
+  zoomIn() {
+    const { sx, sy } = this.paper.scale();
+    this.paper.scale(sx + 0.1, sy + 0.1);
+  }
+
+  zoomOut() {
+    const { sx, sy } = this.paper.scale();
+    this.paper.scale(Math.max(0.2, sx - 0.1), Math.max(0.2, sy - 0.1));
+  }
+
+  resetZoom() {
+    this.paper.scale(1, 1);
+    this.paper.translate(0, 0); // opcional: reset pan también
   }
 
 

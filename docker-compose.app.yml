@@ -2,6 +2,8 @@ services:
   web:
     build: ./back_generador/
     container_name: django_backend
+    env_file:
+      - ./back_generador/.env 
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_DB=colaborativodb
